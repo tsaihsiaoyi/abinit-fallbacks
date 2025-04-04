@@ -15,8 +15,6 @@ tmp
 auto-*.m4
 tmp-*
 tmp_*
-TMP*
-configure~
 ui_*.py
 *-stamp
 *.la
@@ -58,3 +56,6 @@ ui_*.py
 /exports
 /sources
 /stamps
+/_build*
+/build
+/.vscode
