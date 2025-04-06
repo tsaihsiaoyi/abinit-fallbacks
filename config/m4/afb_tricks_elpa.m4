@@ -37,6 +37,9 @@ AC_DEFUN([AFB_TRICKS_ELPA],[
     dnl Basic configuration options
     CFGFLAGS_ELPA="--enable-static --disable-shared"
     
+    dnl Disable tests
+    CFGFLAGS_ELPA="${CFGFLAGS_ELPA} --enable-c-tests=no --enable-cpp-tests=no --enable-fortran-tests=no"
+
     dnl OpenMP support
     if test "${afb_elpa_enable_openmp}" = "yes"; then
       CFGFLAGS_ELPA="${CFGFLAGS_ELPA} --enable-openmp=yes"
@@ -49,7 +52,8 @@ AC_DEFUN([AFB_TRICKS_ELPA],[
     CFGFLAGS_ELPA="${tmpcfg_elpa} ${CFGFLAGS_ELPA}"
     unset tmpcfg_elpa
     # TODO: add support for AVX kernels if available
-    
+    # TODO: add support for 64bit integer support (--enable-64bit-integer-math-support)
+
     dnl Finish
     tmp_elpa_cnt_tricks=`expr ${tmp_elpa_cnt_tricks} \+ 1`
     afb_elpa_tricky_vars="${afb_elpa_tricky_vars} CFGFLAGS"
