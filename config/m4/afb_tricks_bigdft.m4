@@ -27,7 +27,7 @@ AC_DEFUN([AFB_TRICKS_BIGDFT],[
   dnl Init
   afb_bigdft_tricks="no"
   afb_bigdft_tricky_vars=""
-  tmp_bigdft_num_tricks=3
+  tmp_bigdft_num_tricks=4
   tmp_bigdft_cnt_tricks=0
 
   dnl Configure tricks
@@ -55,6 +55,23 @@ AC_DEFUN([AFB_TRICKS_BIGDFT],[
     AC_MSG_NOTICE([CFGFLAGS_BIGDFT set => skipping BigDFT config tricks])
   fi
 
+  dnl C tricks
+  if test "${afb_bigdft_cflags_custom}" = "no"; then
+    AC_MSG_NOTICE([applying BigDFT tricks (vendor: $1, version: $2, flags: C)])
+
+    case "$1" in
+      intel)
+        CFLAGS_BIGDFT="${CFLAGS_BIGDFT} -std=gnu89"
+        ;;
+    esac
+
+    dnl Finish
+    tmp_bigdft_cnt_tricks=`expr ${tmp_bigdft_cnt_tricks} \+ 1`
+    afb_bigdft_tricky_vars="${afb_bigdft_tricky_vars} CFLAGS"
+  else
+    AC_MSG_NOTICE([CFLAGS_BIGDFT set => skipping BigDFT C tricks])
+  fi
+
   dnl CPP tricks
   if test "${afb_bigdft_cppflags_custom}" = "no"; then
     AC_MSG_NOTICE([applying BigDFT tricks (vendor: $1, version: $2, flags: C preprocessing)])
@@ -72,7 +89,7 @@ AC_DEFUN([AFB_TRICKS_BIGDFT],[
   if test "${afb_bigdft_fcflags_custom}" = "no"; then
     AC_MSG_NOTICE([applying BigDFT tricks (vendor: $1, version: $2, flags: Fortran)])
 
-    FCFLAGS_BIGDFT="${CPPFLAGS_BIGDFT} ${FCFLAGS_BIGDFT}"
+    FCFLAGS_BIGDFT="${CPPFLAGS_BIGDFT} ${FCFLAGS_BIGDFT} -fallow-argument-mismatch"
 
     dnl Finish
     tmp_bigdft_cnt_tricks=`expr ${tmp_bigdft_cnt_tricks} \+ 1`
