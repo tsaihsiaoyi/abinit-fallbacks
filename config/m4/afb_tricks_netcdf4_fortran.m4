@@ -27,7 +27,7 @@ AC_DEFUN([AFB_TRICKS_NETCDF4_FORTRAN],[
   dnl Init
   afb_netcdf4_fortran_tricks="no"
   afb_netcdf4_fortran_tricky_vars=""
-  tmp_netcdf4_fortran_num_tricks=1
+  tmp_netcdf4_fortran_num_tricks=3
   tmp_netcdf4_fortran_cnt_tricks=0
 
   dnl Configure tricks
@@ -63,6 +63,19 @@ AC_DEFUN([AFB_TRICKS_NETCDF4_FORTRAN],[
     afb_netcdf4_fortran_tricky_vars="${afb_netcdf4_fortran_tricky_vars} CFGFLAGS"
   else
     AC_MSG_NOTICE([CPPFLAGS_NETCDF4_FORTRAN set => skipping NetCDF4 Fortran  preprocessing tricks])
+  fi
+
+  dnl LIBS tricks
+  if test "${afb_netcdf4_fortran_libs_custom}" = "no"; then
+    AC_MSG_NOTICE([applying LibXC tricks (vendor: $1, version: $2, flags: LIBS)])
+
+    LIBS_NETCDF4_FORTRAN="${LIBS_NETCDF4_FORTRAN} -lz"
+
+    dnl Finish
+    tmp_netcdf4_fortran_cnt_tricks=`expr ${tmp_netcdf4_fortran_cnt_tricks} \+ 1`
+    afb_netcdf4_fortran_tricky_vars="${afb_netcdf4_fortran_tricky_vars} LIBS"
+  else
+    AC_MSG_NOTICE([LIBS_NETCDF4_FORTRAN set => skipping NetCDF4 Fortran libs tricks])
   fi
 
   dnl Count applied tricks

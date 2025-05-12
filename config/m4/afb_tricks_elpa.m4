@@ -30,6 +30,13 @@ AC_DEFUN([AFB_TRICKS_ELPA],[
   tmp_elpa_num_tricks=2
   tmp_elpa_cnt_tricks=0
 
+  AC_ARG_ENABLE(elpa-openmp,
+    AS_HELP_STRING([--enable-elpa-openmp],
+      [Activate support for OpenMP in ELPA (default: no)]),
+    [afb_elpa_enable_openmp="${enableval}"],
+    [afb_elpa_enable_openmp="no"])
+  AC_MSG_NOTICE([ELPA OpenMP support: ${afb_elpa_enable_openmp}])
+
   dnl Configure tricks
   if test "${afb_elpa_cfgflags_custom}" = "no"; then
     AC_MSG_NOTICE([applying ELPA tricks (vendor: $1, version: $2, flags: config)])
