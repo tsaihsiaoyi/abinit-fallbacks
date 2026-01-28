@@ -56,25 +56,12 @@ AC_DEFUN([AFB_TRICKS_NETCDF4_FORTRAN],[
   if test "${afb_netcdf4_fortran_libs_custom}" = "no"; then
     AC_MSG_NOTICE([applying NetCDF4 Fortran tricks (vendor: $1, version: $2, flags: LIBS)])
 
-    dnl Look for HDF5 wrapper (h5cc or h5pcc) in afb_hdf5_bins and extract extra libs
-    tmp_netcdf4_fortran_h5cc=""
-    AC_PATH_PROGS([tmp_netcdf4_fortran_h5cc],
-                   [h5cc h5pcc],
-                   [],
-                   [${prefix}/${hdf5_pkg_inst}/bin])
-
-    if test "${tmp_netcdf4_fortran_h5cc}" != ""; then
-      tmp_netcdf4_fortran_extra_libs=`${tmp_netcdf4_fortran_h5cc} -showconfig 2>/dev/null | sed -n 's/^ *Extra libraries: *//p'`
-      for arg in ${tmp_netcdf4_fortran_extra_libs}; do
-        case "${arg}" in
-          -l*) LIBS_NETCDF4_FORTRAN="${LIBS_NETCDF4_FORTRAN} ${arg}" ;;
-        esac
-      done
+    if test "${afb_hdf5_ok}" = "yes"; then
+      AC_SEARCH_LIBS([deflate], [z], LIBS_NETCDF4_FORTRAN="${LIBS_NETCDF4_FORTRAN} -lz")
+      AC_SEARCH_LIBS([SZIP_encode_buffer], [sz], LIBS_NETCDF4_FORTRAN="${LIBS_NETCDF4_FORTRAN} -lsz")
     fi
 
     dnl Finish
-    unset tmp_netcdf4_fortran_h5cc
-    unset tmp_netcdf4_fortran_extra_libs
     tmp_netcdf4_fortran_cnt_tricks=`expr ${tmp_netcdf4_fortran_cnt_tricks} \+ 1`
     afb_netcdf4_fortran_tricky_vars="${afb_netcdf4_fortran_tricky_vars} LIBS"
   else
