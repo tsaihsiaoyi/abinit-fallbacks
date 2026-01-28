@@ -147,14 +147,25 @@ AFB_PATCHES_SETUP
 AC_PROG_CC
 AC_PROG_CPP
 
-# extract C compiler if mpi wrapper
-# TODO : check better for mpi wrapper in CC
+# Detect MPI support like arch-mpi from the main ABINIT tree
+# Instead of guessing from the wrapper name, try compiling tiny MPI programs.
 has_mpi="no"
+afb_mpi_cc_ok="no"
+afb_mpi_fc_ok="no"
+afb_has_mpi="no"
 ac_cc_req=${CC}
+AFB_MPI_CHECK_CC
 tmp_cc=$(echo "${CC}"|grep -o '[[^/]]*$')
-if test "mpi" = $(echo "${tmp_cc}"|cut -c -3); then
-    ac_cc_req=$(eval $ac_cc_req -show|cut -d' ' -f1)
-    afb_has_mpi="yes"
+if test "${afb_mpi_cc_ok}" = "yes"; then
+  # If CC is an MPI wrapper, try to recover the underlying compiler
+  if test "mpi" = $(echo "${tmp_cc}"|cut -c -3); then
+    ac_cc_req=$(eval $ac_cc_req -show 2>/dev/null |cut -d' ' -f1)
+    if test "x${ac_cc_req}" = "x"; then
+      ac_cc_req=${CC}
+    fi
+  fi
+else
+  AC_MSG_WARN([C compiler failed to link a simple MPI program; MPI fallbacks will stay disabled])
 fi
 
 # LibXC sometimes requires C99
@@ -183,6 +194,13 @@ AC_PROG_CXX
 #
 
 AC_PROG_FC
+AFB_MPI_CHECK_FC
+if test "${afb_mpi_fc_ok}" != "yes"; then
+  AC_MSG_WARN([Fortran compiler failed to link a simple MPI program; MPI fallbacks will stay disabled])
+fi
+if test "${afb_mpi_cc_ok}" = "yes" -a "${afb_mpi_fc_ok}" = "yes"; then
+  afb_has_mpi="yes"
+fi
 AFB_PROG_FC
 
 # ---------------------------------------------------------------------------- #

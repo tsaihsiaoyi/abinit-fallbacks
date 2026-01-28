@@ -27,7 +27,7 @@ AC_DEFUN([AFB_TRICKS_NETCDF4_FORTRAN],[
   dnl Init
   afb_netcdf4_fortran_tricks="no"
   afb_netcdf4_fortran_tricky_vars=""
-  tmp_netcdf4_fortran_num_tricks=3
+  tmp_netcdf4_fortran_num_tricks=2
   tmp_netcdf4_fortran_cnt_tricks=0
 
   dnl Configure tricks
@@ -52,26 +52,29 @@ AC_DEFUN([AFB_TRICKS_NETCDF4_FORTRAN],[
     AC_MSG_NOTICE([CFGFLAGS_NETCDF4_FORTRAN set => skipping NetCDF4 Fortran config tricks])
   fi
 
-  dnl CPP tricks
-  if test "${afb_netcdf4_fortran_cppflags_custom}" = "no"; then
-    AC_MSG_NOTICE([applying NetCDF4 Fortran tricks (vendor: $1, version: $2, flags: C preprocessing)])
-
-    CPPFLAGS_NETCDF4_FORTRAN="${CPPFLAGS_NETCDF4_FORTRAN} \$(afb_netcdf4_incs) "
-
-    dnl Finish
-    tmp_netcdf4_fortran_cnt_tricks=`expr ${tmp_netcdf4_fortran_cnt_tricks} \+ 1`
-    afb_netcdf4_fortran_tricky_vars="${afb_netcdf4_fortran_tricky_vars} CFGFLAGS"
-  else
-    AC_MSG_NOTICE([CPPFLAGS_NETCDF4_FORTRAN set => skipping NetCDF4 Fortran  preprocessing tricks])
-  fi
-
   dnl LIBS tricks
   if test "${afb_netcdf4_fortran_libs_custom}" = "no"; then
-    AC_MSG_NOTICE([applying LibXC tricks (vendor: $1, version: $2, flags: LIBS)])
+    AC_MSG_NOTICE([applying NetCDF4 Fortran tricks (vendor: $1, version: $2, flags: LIBS)])
 
-    LIBS_NETCDF4_FORTRAN="${LIBS_NETCDF4_FORTRAN} -lz"
+    dnl Look for HDF5 wrapper (h5cc or h5pcc) in afb_hdf5_bins and extract extra libs
+    tmp_netcdf4_fortran_h5cc=""
+    AC_PATH_PROGS([tmp_netcdf4_fortran_h5cc],
+                   [h5cc h5pcc],
+                   [],
+                   [${prefix}/${hdf5_pkg_inst}/bin])
+
+    if test "${tmp_netcdf4_fortran_h5cc}" != ""; then
+      tmp_netcdf4_fortran_extra_libs=`${tmp_netcdf4_fortran_h5cc} -showconfig 2>/dev/null | sed -n 's/^ *Extra libraries: *//p'`
+      for arg in ${tmp_netcdf4_fortran_extra_libs}; do
+        case "${arg}" in
+          -l*) LIBS_NETCDF4_FORTRAN="${LIBS_NETCDF4_FORTRAN} ${arg}" ;;
+        esac
+      done
+    fi
 
     dnl Finish
+    unset tmp_netcdf4_fortran_h5cc
+    unset tmp_netcdf4_fortran_extra_libs
     tmp_netcdf4_fortran_cnt_tricks=`expr ${tmp_netcdf4_fortran_cnt_tricks} \+ 1`
     afb_netcdf4_fortran_tricky_vars="${afb_netcdf4_fortran_tricky_vars} LIBS"
   else
