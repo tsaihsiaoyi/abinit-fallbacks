@@ -25,7 +25,7 @@
 
 # Initialize Autoconf
 AC_PREREQ(2.68)
-AC_INIT([ABINIT-Fallbacks],[10.0],
+AC_INIT([ABINIT-Fallbacks],[10.6],
   [https://bugs.launchpad.net/abinit-fallbacks/],[abinit-fallbacks])
 AC_REVISION([Autotools support for the ABINIT Fallbacks])
 AC_CONFIG_AUX_DIR([config/gnu])
@@ -243,6 +243,7 @@ FC_LIBS="${FC_LIBS} ${LIBS}"
 #
 
 # HDF5 significantly enhances NetCDF4
+# but we should allow fallback without hdf5
 # enable_hdf5="yes"
 afb_hdf5_build_par="no"
 
@@ -269,6 +270,11 @@ fi
 
 # Configure all fallbacks
 AFB_SETUP_PACKAGES
+
+# Extra dependency checks for netcdf4_fortran
+AX_CHECK_ZLIB
+AX_CHECK_SZIP
+AX_CHECK_CURL
 
 # ---------------------------------------------------------------------------- #
 
