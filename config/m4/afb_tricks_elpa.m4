@@ -119,6 +119,16 @@ AC_DEFUN([AFB_TRICKS_ELPA],[
     AC_MSG_NOTICE([CFGFLAGS_ELPA set => skipping ELPA arch tricks])
   fi
 
+  dnl Build and install the library only: ELPA always builds hundreds of
+  dnl validate_* test programs, even with --enable-*-tests=no, which takes
+  dnl time and fails to link with some compilers (e.g. AOCC, duplicate
+  dnl GPU layer symbols between libelpatest and libelpa). The test library
+  dnl must be skipped as well: its dependency on the elpa module is only
+  dnl known through the test programs, which breaks parallel builds.
+  dnl $(SUFFIX) is expanded by the Makefile of ELPA.
+  MAKEARGS_ELPA="noinst_PROGRAMS= 'noinst_LTLIBRARIES=libelpa\$\$(SUFFIX)_public.la libelpa\$\$(SUFFIX)_private.la'"
+  AC_SUBST(MAKEARGS_ELPA)
+
   dnl Linar algebra tricks
   if test "${afb_elpa_ldflag_custom}" = "no"; then
     AC_MSG_NOTICE([applying ELPA tricks (vendor: $1, version: $2, flags: linalg)])

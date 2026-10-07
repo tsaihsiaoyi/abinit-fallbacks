@@ -307,7 +307,20 @@ AC_DEFUN([AFB_LINALG_DETECT],[
       done
       unset tmp_flag
       with_linalg_incs=`echo ${with_linalg_incs}`
-      with_linalg_libs=`echo ${afb_linalg_det_ldflags} ${afb_linalg_det_libs}`
+      dnl Link flags may have been added once per component
+      tmp_ldflags=""
+      for tmp_flag in ${afb_linalg_det_ldflags}; do
+        case " ${tmp_ldflags} " in
+          *" ${tmp_flag} "*)
+            ;;
+          *)
+            tmp_ldflags="${tmp_ldflags} ${tmp_flag}"
+            ;;
+        esac
+      done
+      unset tmp_flag
+      with_linalg_libs=`echo ${tmp_ldflags} ${afb_linalg_det_libs}`
+      unset tmp_ldflags
       AC_MSG_NOTICE([linear algebra include flags: ${with_linalg_incs:-none}])
       AC_MSG_NOTICE([linear algebra libraries: ${with_linalg_libs:-none required}])
 
@@ -565,6 +578,7 @@ AC_DEFUN([_AFB_LINALG_DETECT_EXPLORE],[
       if test "${tmp_proceed}" != "" -a \
               "${afb_linalg_det_has_blacs}" != "yes"; then
         AC_MSG_CHECKING([${tmp_vendor} libraries for BLACS])
+        tmp_blacs_saved_LIBS="${LIBS}"
         if test "${afb_linalg_vnd_blacs_libs}" = ""; then
           AC_MSG_RESULT([none required])
         else
@@ -572,6 +586,12 @@ AC_DEFUN([_AFB_LINALG_DETECT_EXPLORE],[
           LIBS="${afb_linalg_vnd_blacs_libs} ${LIBS}"
         fi
         _AFB_LINALG_DETECT_LINK([BLACS], [blacs_gridinit], [afb_linalg_det_has_blacs])
+        dnl Do not let missing BLACS libraries break the ScaLAPACK check:
+        dnl since ScaLAPACK 2.0, BLACS is part of libscalapack
+        if test "${afb_linalg_det_has_blacs}" != "yes"; then
+          LIBS="${tmp_blacs_saved_LIBS}"
+        fi
+        unset tmp_blacs_saved_LIBS
         if test "${afb_linalg_det_has_blacs}" = "yes"; then
           afb_linalg_det_flavor_found="${afb_linalg_det_flavor_found}+${tmp_vendor}"
           tmp_blacs_vendor="${tmp_vendor}"
@@ -602,6 +622,10 @@ AC_DEFUN([_AFB_LINALG_DETECT_EXPLORE],[
           fi
           test "${afb_linalg_vnd_scalapack_libs}" != "" && \
             afb_linalg_det_libs="${afb_linalg_vnd_scalapack_libs} ${afb_linalg_det_libs}"
+          dnl BLACS may be provided by the ScaLAPACK library itself
+          if test "${afb_linalg_det_has_blacs}" != "yes"; then
+            _AFB_LINALG_DETECT_LINK([BLACS], [blacs_gridinit], [afb_linalg_det_has_blacs])
+          fi
           break
         fi
       fi
@@ -757,8 +781,23 @@ AC_DEFUN([_AFB_LINALG_DETECT_VENDOR],[
       dnl Linked automatically by the Cray compiler wrappers (cc, CC, ftn)
       dnl when the cray-libsci module is loaded
       afb_linalg_vnd_provided="blas lapack blacs scalapack"
-      if test "${afb_cray_pe}" != "yes"; then
-        AC_MSG_WARN([Cray LibSci requires the Cray compiler wrappers])
+      if test "${afb_cray_wrappers}" != "yes"; then
+        dnl Plain compilers (e.g. FC=gfortran on a Cray PE): link LibSci
+        dnl explicitly, provided that the loaded LibSci variant has been
+        dnl built for the same compiler as the one in use
+        case "${PE_ENV}:${afb_fc_vendor}" in
+          GNU:gnu|INTEL:intel|CRAY:cray|AOCC:llvm|AOCC:aocc)
+            tmp_sci_libdir="${CRAY_LIBSCI_PREFIX_DIR}/lib"
+            tmp_sci_name=`ls ${tmp_sci_libdir} 2>/dev/null | \
+              sed -n -e 's/^lib\(sci_[[a-z]]*\)\.a$/\1/p' | head -n 1`
+            if test "${tmp_sci_name}" != ""; then
+              afb_linalg_vnd_ldflags="-L${tmp_sci_libdir}"
+              afb_linalg_vnd_blas_libs="-l${tmp_sci_name}"
+              afb_linalg_vnd_scalapack_libs="-l${tmp_sci_name}_mpi"
+            fi
+            unset tmp_sci_libdir tmp_sci_name
+            ;;
+        esac
       fi
       ;;
 

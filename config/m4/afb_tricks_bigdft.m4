@@ -45,6 +45,14 @@ AC_DEFUN([AFB_TRICKS_BIGDFT],[
     tmpflags_bigdft='--disable-binaries --disable-bindings --enable-libbigdft'
     CFGFLAGS_BIGDFT="${CFGFLAGS_BIGDFT} ${tmpflags_bigdft} ${tmpflags_options} ${tmpflags_libxc}"
 
+    dnl Python: the configure script of S_GPU, bundled with BigDFT and
+    dnl always run, stops if there is no "python" executable, which is often
+    dnl only available as "python3"
+    AC_PATH_PROGS([afb_bigdft_python], [python3 python])
+    if test "${afb_bigdft_python}" != ""; then
+      CFGFLAGS_BIGDFT="${CFGFLAGS_BIGDFT} PYTHON=${afb_bigdft_python}"
+    fi
+
     dnl Finish
     tmp_bigdft_cnt_tricks=`expr ${tmp_bigdft_cnt_tricks} \+ 1`
     afb_bigdft_tricky_vars="${afb_bigdft_tricky_vars} CFGFLAGS"
@@ -97,12 +105,41 @@ AC_DEFUN([AFB_TRICKS_BIGDFT],[
         FCFLAGS_BIGDFT="${FCFLAGS_BIGDFT} -fallow-argument-mismatch"
       fi
     fi
+    dnl CCE 18 crashes in its backend (LLVM "Broken module found") when
+    dnl compiling flib/src/dictionaries.f90 with the default IPA level
+    if test "$1" = "cray"; then
+      FCFLAGS_BIGDFT="${FCFLAGS_BIGDFT} -h ipa1"
+    fi
+    dnl AOCC 4.1 (flang) crashes in the LLVM inliner when compiling
+    dnl src/forces.f90 at its default optimization level (-O2)
+    if test "$1" = "llvm"; then
+      if ${FC} --version 2>&1 | grep AOCC >/dev/null; then
+        FCFLAGS_BIGDFT="${FCFLAGS_BIGDFT} -O1"
+      fi
+    fi
 
     dnl Finish
     tmp_bigdft_cnt_tricks=`expr ${tmp_bigdft_cnt_tricks} \+ 1`
     afb_bigdft_tricky_vars="${afb_bigdft_tricky_vars} FCFLAGS"
   else
     AC_MSG_NOTICE([FCFLAGS_BIGDFT set => skipping BigDFT Fortran tricks])
+  fi
+
+  dnl Linker tricks
+  dnl The NetCDF fallbacks are static libraries, so -lnetcdff alone is not
+  dnl enough: the NetCDF-C and HDF5 libraries it depends on (and their own
+  dnl dependencies, e.g. -lz -lcurl) must be linked as well. Since NetCDF-C
+  dnl is installed before BigDFT is configured, ask nc-config for them.
+  dnl (With Cray CCE, -lnetcdff alone even breaks the configure checks of
+  dnl BigDFT, as the Cray runtime pulls objects out of libnetcdff.a.)
+  if test "${afb_bigdft_libs_custom}" = "no" -a \
+          "${enable_netcdf4}" = "yes" -a "${enable_netcdf4_fortran}" = "yes"; then
+    AC_MSG_NOTICE([applying BigDFT tricks (vendor: $1, version: $2, flags: libraries)])
+
+    tmplibs_bigdft='$(afb_netcdf4_fortran_libs) `$(prefix)/netcdf4/default/bin/nc-config --static --libs`'
+    LIBS_BIGDFT="${tmplibs_bigdft} ${LIBS_BIGDFT}"
+    afb_bigdft_tricky_vars="${afb_bigdft_tricky_vars} LIBS"
+    unset tmplibs_bigdft
   fi
 
   dnl Count applied tricks

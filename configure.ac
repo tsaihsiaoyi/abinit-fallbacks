@@ -171,7 +171,19 @@ if test "${afb_cray_pe}" = "yes"; then
   test "${CC}" = "" && CC="cc"
   test "${CXX}" = "" && CXX="CC"
   test "${FC}" = "" && FC="ftn"
-  AC_MSG_NOTICE([using Cray compiler wrappers: CC=${CC} CXX=${CXX} FC=${FC}])
+fi
+# Whether the Fortran compiler is the Cray wrapper, which links Cray LibSci
+# and MPICH automatically (it might not be, if FC has been set explicitly)
+afb_cray_wrappers="no"
+if test "${afb_cray_pe}" = "yes"; then
+  tmp_fc_cmd=`echo ${FC} | cut -d' ' -f1`
+  test "`basename ${tmp_fc_cmd}`" = "ftn" && afb_cray_wrappers="yes"
+  unset tmp_fc_cmd
+  if test "${afb_cray_wrappers}" = "yes"; then
+    AC_MSG_NOTICE([using Cray compiler wrappers: CC=${CC} CXX=${CXX} FC=${FC}])
+  else
+    AC_MSG_NOTICE([not using the Cray compiler wrappers, as requested: CC=${CC} CXX=${CXX} FC=${FC}])
+  fi
 fi
 
 # ---------------------------------------------------------------------------- #
@@ -314,6 +326,12 @@ fi
 
 # Look for external linear algebra as Abinit does
 AFB_LINALG_DETECT
+
+# ELPA requires MPI (and ScaLAPACK): do not build it by default without MPI
+if test "${afb_has_mpi}" != "yes" -a "${enable_elpa}" = ""; then
+  AC_MSG_NOTICE([MPI is not available => disabling the ELPA fallback])
+  enable_elpa="no"
+fi
 
 # Configure all fallbacks
 AFB_SETUP_PACKAGES
