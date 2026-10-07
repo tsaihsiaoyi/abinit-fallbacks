@@ -89,7 +89,14 @@ AC_DEFUN([AFB_TRICKS_BIGDFT],[
   if test "${afb_bigdft_fcflags_custom}" = "no"; then
     AC_MSG_NOTICE([applying BigDFT tricks (vendor: $1, version: $2, flags: Fortran)])
 
-    FCFLAGS_BIGDFT="${CPPFLAGS_BIGDFT} ${FCFLAGS_BIGDFT} -fallow-argument-mismatch"
+    FCFLAGS_BIGDFT="${CPPFLAGS_BIGDFT} ${FCFLAGS_BIGDFT}"
+    dnl GCC >= 10 rejects argument mismatches by default (other compilers
+    dnl do not know this option, e.g. Cray Fortran stops with an error)
+    if test "$1" = "gnu"; then
+      if test "`echo "$2" | cut -d. -f1`" -ge 10 2>/dev/null; then
+        FCFLAGS_BIGDFT="${FCFLAGS_BIGDFT} -fallow-argument-mismatch"
+      fi
+    fi
 
     dnl Finish
     tmp_bigdft_cnt_tricks=`expr ${tmp_bigdft_cnt_tricks} \+ 1`

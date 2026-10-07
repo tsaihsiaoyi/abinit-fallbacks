@@ -239,6 +239,14 @@ if test "${afb_mpi_cc_ok}" = "yes" -a "${afb_mpi_fc_ok}" = "yes"; then
 fi
 AFB_PROG_FC
 
+# Cray Fortran names module files MODULENAME.mod (uppercase) by default,
+# while the fallbacks (e.g. netcdf-fortran) install them as modulename.mod;
+# -ef makes the compiler write lowercase module file names
+if test "${afb_fc_vendor}" = "cray"; then
+  AC_MSG_NOTICE([Cray Fortran: adding -ef to get lowercase module file names])
+  FCFLAGS_FREEFORM="${FCFLAGS_FREEFORM} -ef"
+fi
+
 # ---------------------------------------------------------------------------- #
 
 #

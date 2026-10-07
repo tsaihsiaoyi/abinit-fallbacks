@@ -60,7 +60,7 @@ AC_DEFUN([AFB_TRICKS_LIBXC],[
         ])
         CFLAGS_LIBXC="${CFLAGS_LIBXC} -traceback -Wall -O0 -fp-model=precise"
         ;;
-      cray)
+      gnu)
         dnl Compilation of mgga_c_b94 gets stuck with optimization
         AC_MSG_NOTICE([
             Disabling optimization in libxc (-O0) else compilation with cray gets stuck

@@ -50,7 +50,13 @@ AC_DEFUN([AFB_TRICKS_WANNIER90],[
   if test "${afb_wannier90_fcflags_custom}" = "no"; then
     AC_MSG_NOTICE([applying Wannier90 tricks (vendor: $1, version: $2, flags: Fortran compiler)])
     
-    FCFLAGS_WANNIER90="${FCFLAGS_WANNIER90} -fallow-argument-mismatch"
+    dnl GCC >= 10 rejects argument mismatches by default (other compilers
+    dnl do not know this option, e.g. Cray Fortran stops with an error)
+    if test "$1" = "gnu"; then
+      if test "`echo "$2" | cut -d. -f1`" -ge 10 2>/dev/null; then
+        FCFLAGS_WANNIER90="${FCFLAGS_WANNIER90} -fallow-argument-mismatch"
+      fi
+    fi
 
     dnl Finish
     tmp_wannier90_cnt_tricks=`expr ${tmp_wannier90_cnt_tricks} \+ 1`
