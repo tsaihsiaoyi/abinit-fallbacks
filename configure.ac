@@ -141,10 +141,46 @@ AFB_PATCHES_SETUP
 # ---------------------------------------------------------------------------- #
 
 #
+# Compiler search order
+#
+# When CC/CXX/FC are not set by the user, prefer MPI wrappers over serial
+# compilers (and Intel oneAPI over GNU), so that e.g. loading an Intel MPI
+# toolchain is enough to get mpiicx/mpiicpx/mpiifx picked up automatically.
+# Explicit CC=..., CXX=..., FC=... on the command line still take precedence.
+#
+m4_define([afb_cc_search_list],
+  [mpiicx mpiicc mpicc icx icc gcc cc])
+m4_define([afb_cxx_search_list],
+  [mpiicpx mpiicpc mpicxx mpic++ mpiCC icpx icpc g++ c++])
+m4_define([afb_fc_search_list],
+  [mpiifx mpiifort mpif90 mpifort ifx ifort gfortran f95 f90])
+
+# On a Cray Programming Environment, the cc/CC/ftn wrappers already include
+# MPI (cray-mpich) and the selected PrgEnv compiler, so they must win over
+# anything else. They cannot simply be put in the lists above, since "cc"
+# and "CC" exist on most systems, hence the explicit detection.
+AC_MSG_CHECKING([for a Cray Programming Environment])
+afb_cray_pe="no"
+if test "${CRAYPE_VERSION}" != "" -o "${PE_ENV}" != ""; then
+  if command -v ftn >/dev/null 2>&1 && command -v cc >/dev/null 2>&1; then
+    afb_cray_pe="yes"
+  fi
+fi
+AC_MSG_RESULT([${afb_cray_pe}])
+if test "${afb_cray_pe}" = "yes"; then
+  test "${CC}" = "" && CC="cc"
+  test "${CXX}" = "" && CXX="CC"
+  test "${FC}" = "" && FC="ftn"
+  AC_MSG_NOTICE([using Cray compiler wrappers: CC=${CC} CXX=${CXX} FC=${FC}])
+fi
+
+# ---------------------------------------------------------------------------- #
+
+#
 # C support
 #
 
-AC_PROG_CC
+AC_PROG_CC(afb_cc_search_list)
 AC_PROG_CPP
 
 # Detect MPI support like arch-mpi from the main ABINIT tree
@@ -171,7 +207,7 @@ fi
 # LibXC sometimes requires C99
 # Note: if problem, set ac_cv_prog_cc_c99="no"
 #AC_PROG_CC_C99 is obsolete starting from autoconf 2.70 
-AC_PROG_CC
+AC_PROG_CC(afb_cc_search_list)
 
 # Store information on C compiler
 AFB_PROG_CC(${CC})
@@ -185,7 +221,7 @@ ref_cc_cmd="${ac_cc_req}"
 # C++ support
 #
 
-AC_PROG_CXX
+AC_PROG_CXX(afb_cxx_search_list)
 
 # ---------------------------------------------------------------------------- #
 
@@ -193,7 +229,7 @@ AC_PROG_CXX
 # Fortran support
 #
 
-AC_PROG_FC
+AC_PROG_FC(afb_fc_search_list)
 AFB_MPI_CHECK_FC
 if test "${afb_mpi_fc_ok}" != "yes"; then
   AC_MSG_WARN([Fortran compiler failed to link a simple MPI program; MPI fallbacks will stay disabled])
