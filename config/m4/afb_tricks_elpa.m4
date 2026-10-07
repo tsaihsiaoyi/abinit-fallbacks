@@ -37,6 +37,13 @@ AC_DEFUN([AFB_TRICKS_ELPA],[
     [afb_elpa_enable_openmp="no"])
   AC_MSG_NOTICE([ELPA OpenMP support: ${afb_elpa_enable_openmp}])
 
+  AC_ARG_ENABLE(elpa-simd,
+    AS_HELP_STRING([--disable-elpa-simd],
+      [Build only the generic ELPA kernels instead of the SIMD kernels supported by the build host, e.g. for heterogeneous clusters (default: enabled)]),
+    [afb_elpa_enable_simd="${enableval}"],
+    [afb_elpa_enable_simd="yes"])
+  AC_MSG_NOTICE([ELPA SIMD kernels: ${afb_elpa_enable_simd}])
+
   dnl Configure tricks
   if test "${afb_elpa_cfgflags_custom}" = "no"; then
     AC_MSG_NOTICE([applying ELPA tricks (vendor: $1, version: $2, flags: config)])
@@ -54,11 +61,55 @@ AC_DEFUN([AFB_TRICKS_ELPA],[
       CFGFLAGS_ELPA="${CFGFLAGS_ELPA} --enable-openmp=no"
     fi
 
-    dnl Add standard flags
-    tmpcfg_elpa="--disable-avx-kernels --disable-avx2-kernels --disable-avx512-kernels --disable-sse-kernels --disable-sse-assembly-kernels"
+    dnl SIMD kernels: ELPA uses the best compiled kernel by default and
+    dnl does not check the CPU at run time, so only build the kernels
+    dnl supported by the build host
+    if test "${host_cpu}" = "x86_64" -a "${afb_elpa_enable_simd}" = "yes"; then
+      tmp_saved_CFLAGS="${CFLAGS}"
+      AC_LANG_PUSH([C])
+
+      dnl Target the instruction set of the build host
+      if test "${afb_elpa_cflags_custom}" = "no"; then
+        tmp_elpa_host_flag=""
+        for tmp_flag in -march=native -xHost; do
+          if test "${tmp_elpa_host_flag}" = ""; then
+            CFLAGS="${CFLAGS_ELPA} ${tmp_flag}"
+            AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [])],
+              [tmp_elpa_host_flag="${tmp_flag}"])
+          fi
+        done
+        AC_MSG_CHECKING([for the C flag targeting the build host in ELPA])
+        if test "${tmp_elpa_host_flag}" = ""; then
+          AC_MSG_RESULT([none])
+        else
+          AC_MSG_RESULT([${tmp_elpa_host_flag}])
+          CFLAGS_ELPA="${CFLAGS_ELPA} ${tmp_elpa_host_flag}"
+        fi
+        unset tmp_flag
+        unset tmp_elpa_host_flag
+      fi
+
+      dnl Same tests as ELPA's configure, which fails on unusable kernels
+      CFLAGS="${CFLAGS_ELPA}"
+      tmpcfg_elpa=""
+      _AFB_ELPA_CHECK_KERNEL([sse], [__m128d h1 = _mm_loaddup_pd(q);])
+      tmpcfg_elpa="${tmpcfg_elpa} --${tmp_elpa_kernel_ok}-sse-kernels --${tmp_elpa_kernel_ok}-sse-assembly-kernels"
+      _AFB_ELPA_CHECK_KERNEL([avx], [__m256d a1 = _mm256_load_pd(q);])
+      tmpcfg_elpa="${tmpcfg_elpa} --${tmp_elpa_kernel_ok}-avx-kernels"
+      _AFB_ELPA_CHECK_KERNEL([avx2], [__m256d q1 = _mm256_load_pd(q); __m256d y1 = _mm256_fmadd_pd(q1, q1, q1);])
+      tmpcfg_elpa="${tmpcfg_elpa} --${tmp_elpa_kernel_ok}-avx2-kernels"
+      _AFB_ELPA_CHECK_KERNEL([avx512], [__m512d q1 = _mm512_load_pd(q); __m512d y1 = _mm512_fmadd_pd(q1, q1, q1);])
+      tmpcfg_elpa="${tmpcfg_elpa} --${tmp_elpa_kernel_ok}-avx512-kernels"
+      unset tmp_elpa_kernel_ok
+
+      AC_LANG_POP([C])
+      CFLAGS="${tmp_saved_CFLAGS}"
+      unset tmp_saved_CFLAGS
+    else
+      tmpcfg_elpa="--disable-avx-kernels --disable-avx2-kernels --disable-avx512-kernels --disable-sse-kernels --disable-sse-assembly-kernels"
+    fi
     CFGFLAGS_ELPA="${tmpcfg_elpa} ${CFGFLAGS_ELPA}"
     unset tmpcfg_elpa
-    # TODO: add support for AVX kernels if available
     # TODO: add support for 64bit integer support (--enable-64bit-integer-math-support)
 
     dnl Finish
@@ -99,3 +150,20 @@ AC_DEFUN([AFB_TRICKS_ELPA],[
   unset tmp_elpa_cnt_tricks
   unset tmp_elpa_num_tricks
 ]) # AFB_TRICKS_ELPA
+
+
+
+# _AFB_ELPA_CHECK_KERNEL(KERNEL, STATEMENTS)
+# ------------------------------------------
+#
+# Checks whether the C compiler can build the ELPA KERNEL kernels with
+# the current CFLAGS, and sets tmp_elpa_kernel_ok to "enable" or
+# "disable" accordingly.
+#
+AC_DEFUN([_AFB_ELPA_CHECK_KERNEL],[
+  AC_MSG_CHECKING([whether to build the ELPA $1 kernels])
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <x86intrin.h>]],
+    [[double *q; $2]])],
+    [tmp_elpa_kernel_ok="enable"; AC_MSG_RESULT([yes])],
+    [tmp_elpa_kernel_ok="disable"; AC_MSG_RESULT([no])])
+]) # _AFB_ELPA_CHECK_KERNEL

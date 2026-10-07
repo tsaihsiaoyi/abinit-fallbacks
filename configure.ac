@@ -268,6 +268,9 @@ else
   fi
 fi
 
+# Look for external linear algebra as Abinit does
+AFB_LINALG_DETECT
+
 # Configure all fallbacks
 AFB_SETUP_PACKAGES
 

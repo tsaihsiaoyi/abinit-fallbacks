@@ -36,15 +36,6 @@ AC_DEFUN([AFB_TRICKS_LIBXC],[
     dnl Internal LibXC parameters
     dnl Problem with NAG 7.1 -> --disable-fortran
     CFGFLAGS_LIBXC="--enable-kxc --disable-fortran --enable-static --disable-shared"
-    case "$1" in
-      intel)
-        dnl trick for zenobe
-        AC_MSG_NOTICE([
-            Disabling optimization in libxc (-O0) else compilation with intel gets stuck
-        ])
-        CFLAGS_LIBXC="${CFLAGS_LIBXC} -traceback -Wall -O0 -fp-model=precise"
-        ;;
-    esac
 
     dnl Finish
     tmp_libxc_cnt_tricks=`expr ${tmp_libxc_cnt_tricks} \+ 1`
