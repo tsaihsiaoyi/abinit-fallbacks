@@ -42,7 +42,9 @@ AC_DEFUN([AFB_CHECK_LINALG],[
   tmp_saved_LIBS="${LIBS}"
   CPPFLAGS="${CPPFLAGS} ${with_linalg_incs}"
   FCFLAGS="${FCFLAGS} ${with_linalg_incs}"
-  if test "${afb_linalg_libs}" = ""; then
+  dnl Do not add default libraries when the detection found that none
+  dnl is needed, e.g. Cray LibSci linked by the compiler wrappers
+  if test "${afb_linalg_libs}" = "" -a "${afb_linalg_det_serial_ok}" != "yes"; then
     AC_MSG_CHECKING([for linear algebra libraries to try])
     LIBS="${afb_linalg_default_libs} ${LIBS}"
     AC_MSG_RESULT([${afb_linalg_default_libs}])
@@ -257,7 +259,7 @@ AC_DEFUN([AFB_CHECK_LINALG],[
 #
 AC_DEFUN([AFB_LINALG_DETECT],[
   dnl Init
-  afb_linalg_det_valid_flavors="auto acml aocl asl atlas easybuild elpa essl magma mkl netlib none openblas plasma slate"
+  afb_linalg_det_valid_flavors="auto acml aocl asl atlas easybuild elpa essl libsci magma mkl netlib none openblas plasma slate"
   afb_linalg_det_chk_serial=""
   afb_linalg_det_chk_mpi=""
 
@@ -307,7 +309,11 @@ AC_DEFUN([AFB_LINALG_DETECT],[
       with_linalg_incs=`echo ${with_linalg_incs}`
       with_linalg_libs=`echo ${afb_linalg_det_ldflags} ${afb_linalg_det_libs}`
       AC_MSG_NOTICE([linear algebra include flags: ${with_linalg_incs:-none}])
-      AC_MSG_NOTICE([linear algebra libraries: ${with_linalg_libs}])
+      AC_MSG_NOTICE([linear algebra libraries: ${with_linalg_libs:-none required}])
+
+      dnl Flags may all be empty (e.g. Cray LibSci), in which case they
+      dnl are not enough to disable the internal LINALG fallback
+      enable_linalg="no"
       if test "${afb_has_mpi}" = "yes" -a "${afb_linalg_det_has_scalapack}" != "yes"; then
         AC_MSG_WARN([no ScaLAPACK found, which ELPA requires])
       fi
@@ -361,6 +367,15 @@ AC_DEFUN([_AFB_LINALG_DETECT_SEQUENCES],[
         ;;
     esac
 
+    dnl Cray LibSci comes first on a Cray Programming Environment, since
+    dnl the compiler wrappers link it automatically when it is loaded
+    if test "${afb_cray_pe}" = "yes"; then
+      afb_linalg_det_chk_serial="libsci ${afb_linalg_det_chk_serial}"
+      if test "${afb_has_mpi}" = "yes"; then
+        afb_linalg_det_chk_mpi="libsci ${afb_linalg_det_chk_mpi}"
+      fi
+    fi
+
   else
 
     dnl Reformat flavor
@@ -370,7 +385,7 @@ AC_DEFUN([_AFB_LINALG_DETECT_SEQUENCES],[
     dnl Check flavor unicity for each detection sequence
     for tmp_flavor in ${tmp_iter}; do
       case "${tmp_flavor}" in
-        easybuild|mkl)
+        easybuild|libsci|mkl)
           if test "${afb_linalg_det_chk_serial}" != ""; then
             AC_MSG_ERROR([only one serial linear algebra flavor is permitted])
           fi
@@ -736,6 +751,15 @@ AC_DEFUN([_AFB_LINALG_DETECT_VENDOR],[
       afb_linalg_vnd_fcflags="-qessl"
       afb_linalg_vnd_ldflags="-qessl"
       afb_linalg_vnd_blas_libs="-lessl"
+      ;;
+
+    libsci)
+      dnl Linked automatically by the Cray compiler wrappers (cc, CC, ftn)
+      dnl when the cray-libsci module is loaded
+      afb_linalg_vnd_provided="blas lapack blacs scalapack"
+      if test "${afb_cray_pe}" != "yes"; then
+        AC_MSG_WARN([Cray LibSci requires the Cray compiler wrappers])
+      fi
       ;;
 
     mkl)
