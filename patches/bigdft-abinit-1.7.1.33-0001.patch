@@ -1,0 +1,25 @@
+Make abi_libxc_functionals_getrefs and _constants_load public
+
+BigDFT calls both routines from src/modules/xc.f90 (through
+"use abi_libxc_functionals"), but libABINIT declares them private. The
+compilers then treat the calls as calls to external procedures, which do not
+exist: every program linking libbigdft-1.a fails with
+  undefined reference to `abi_libxc_functionals_constants_load_'
+  undefined reference to `abi_libxc_functionals_getrefs_'
+(e.g. the BigDFT check of the ABINIT configure script).
+
+--- a/libABINIT/src/abi_xc_lowlevel/abi_libxc_functionals.F90
++++ b/libABINIT/src/abi_xc_lowlevel/abi_libxc_functionals.F90
+@@ -66,10 +66,10 @@
+ 
+ !Private functions
+  private :: abi_libxc_functionals_compute_tb09      ! Compute c parameter for Tran-Blaha 2009 functional
+- private :: abi_libxc_functionals_getrefs           ! Get references of a single XC functional
++ public  :: abi_libxc_functionals_getrefs           ! Get references of a single XC functional (used by BigDFT)
+  private :: abi_libxc_functionals_depends_on_temp   ! TRUE if a single functional depends on elec. temperature
+  private :: abi_libxc_functionals_set_temp          ! Set electronic temperature in a single XC functional
+- private :: abi_libxc_functionals_constants_load    ! Load libXC constants from C headers
++ public  :: abi_libxc_functionals_constants_load    ! Load libXC constants from C headers (used by BigDFT)
+ #if defined HAVE_LIBXC
+  private :: abi_xc_char_to_c                        ! Convert a string from Fortran to C
+  private :: abi_xc_char_to_f                        ! Convert a string from C to Fortran
