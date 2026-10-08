@@ -1,0 +1,37 @@
+Install the module files of libABINIT
+
+BigDFT installs its own module files, but not those of libABINIT
+(abi_libxc_functionals.mod, ...), which its modules use. Classic Flang
+(AOCC) needs all the modules used indirectly, so that programs using the
+BigDFT modules cannot be compiled ("Unable to open MODULE file
+abi_libxc_functionals.mod"), e.g. the BigDFT check of the ABINIT configure.
+
+--- a/libABINIT/src/Makefile.in
++++ b/libABINIT/src/Makefile.in
+@@ -1129,7 +1129,7 @@
+ 
+ info-am:
+ 
+-install-data-am:
++install-data-am: install-abinit-modules
+ 
+ install-dvi: install-dvi-am
+ 
+@@ -1700,6 +1700,17 @@
+ symm/symmetry-main.o: symm/symmetry-main.c
+ 	$(PPCCCOMPILE) -c -o symm/symmetry-main.o `test -f 'symm/symmetry-main.c' || echo '$(srcdir)/'`symm/symmetry-main.c
+ 
++# Install the module files of libABINIT, used by those of BigDFT: compilers
++# such as classic Flang (AOCC) need them to compile programs using BigDFT
++install-abinit-modules:
++	@$(NORMAL_INSTALL)
++	$(MKDIR_P) "$(DESTDIR)$(moduledir)"
++	for f in *.mod *.MOD; do \
++	  if test -f "$$f"; then \
++	    $(INSTALL_DATA) "$$f" "$(DESTDIR)$(moduledir)" || exit 1; \
++	  fi; \
++	done
++
+ # Tell versions [3.59,3.63) of GNU make to not export all variables.
+ # Otherwise a system limit (for SysV at least) may be exceeded.
+ .NOEXPORT:
