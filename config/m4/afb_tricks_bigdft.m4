@@ -45,6 +45,25 @@ AC_DEFUN([AFB_TRICKS_BIGDFT],[
     tmpflags_bigdft='--disable-binaries --disable-bindings --enable-libbigdft'
     CFGFLAGS_BIGDFT="${CFGFLAGS_BIGDFT} ${tmpflags_bigdft} ${tmpflags_options} ${tmpflags_libxc}"
 
+    dnl ScaLAPACK: the configure script of BigDFT only tries -lscalapack.
+    dnl Without ScaLAPACK, BigDFT compiles fake BLACS/ScaLAPACK routines
+    dnl (src/modules/blacs_fake.f90, which stop the program), and these
+    dnl replace the real ones in the programs linking libbigdft when the
+    dnl real library comes later on the link line (e.g. Cray LibSci, added
+    dnl at the end by the compiler wrappers): name the actual library
+    case "${afb_linalg_det_flavor_found}" in
+      *libsci*)
+        tmp_bigdft_sci=`echo "${PE_ENV}" | tr 'A-Z' 'a-z'`
+        if test "${tmp_bigdft_sci}" != "" -a "${CRAY_LIBSCI_PREFIX_DIR}" != ""; then
+          CFGFLAGS_BIGDFT="${CFGFLAGS_BIGDFT} --with-scalapack=-lsci_${tmp_bigdft_sci}_mpi --with-scalapack-path=${CRAY_LIBSCI_PREFIX_DIR}/lib"
+        fi
+        unset tmp_bigdft_sci
+        ;;
+      *mkl*)
+        CFGFLAGS_BIGDFT="${CFGFLAGS_BIGDFT} --with-scalapack=-lmkl_scalapack_lp64"
+        ;;
+    esac
+
     dnl Python: the configure script of S_GPU, bundled with BigDFT and
     dnl always run, stops if there is no "python" executable, which is often
     dnl only available as "python3"
