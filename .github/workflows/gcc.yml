@@ -43,7 +43,7 @@ jobs:
       run: |
         mkdir -p build
         cd build
-        ../configure FC=mpifort CC=mpicc CXX=mpicxx --disable-linalg --prefix=$HOME
+        ../configure --prefix=$HOME
 
     - name: Run make
       run: |
