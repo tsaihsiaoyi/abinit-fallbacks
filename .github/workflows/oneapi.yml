@@ -39,7 +39,12 @@ jobs:
         echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
 
         sudo apt update
-        sudo apt install -y intel-oneapi-base-toolkit intel-oneapi-hpc-toolkit
+        # Install only the needed components, all from the latest release:
+        # the toolkit meta packages may mix versions (hpc-toolkit 2025.3 pins
+        # ifx 2025.3 while icx is 2026.1), and setvars.sh then only puts the
+        # latest compiler directory, without ifx, in the PATH
+        sudo apt install -y intel-oneapi-compiler-fortran intel-oneapi-compiler-dpcpp-cpp \
+                            intel-oneapi-mpi-devel intel-oneapi-mkl-devel
         source /opt/intel/oneapi/setvars.sh
 
         printenv >> $GITHUB_ENV
