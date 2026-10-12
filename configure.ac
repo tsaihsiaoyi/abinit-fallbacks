@@ -242,6 +242,20 @@ AC_PROG_CXX(afb_cxx_search_list)
 #
 
 AC_PROG_FC(afb_fc_search_list)
+
+# AC_PROG_FC does not check that the Fortran compiler works, since Autoconf
+# only does it for the first compiler (C). A broken one, e.g. an MPI wrapper
+# around a compiler missing from the PATH, would otherwise silently disable
+# MPI, ELPA and the vendor-specific detection of linear algebra (e.g. MKL)
+AC_MSG_CHECKING([whether the Fortran compiler works])
+AC_LANG_PUSH([Fortran])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([], [])], [afb_fc_ok="yes"], [afb_fc_ok="no"])
+AC_LANG_POP([Fortran])
+AC_MSG_RESULT([${afb_fc_ok}])
+if test "${afb_fc_ok}" != "yes"; then
+  AC_MSG_FAILURE([the Fortran compiler '${FC}' cannot create executables])
+fi
+
 AFB_MPI_CHECK_FC
 if test "${afb_mpi_fc_ok}" != "yes"; then
   AC_MSG_WARN([Fortran compiler failed to link a simple MPI program; MPI fallbacks will stay disabled])
