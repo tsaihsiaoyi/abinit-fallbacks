@@ -250,12 +250,14 @@ AC_DEFUN([AFB_CHECK_LINALG],[
 # AFB_LINALG_DETECT()
 # -------------------
 #
-# Looks for an external linear algebra implementation exactly as Abinit
-# does (same --with-linalg-flavor syntax, vendor settings, detection
-# sequences and link tests, see config/m4/sd_math_linalg*.m4 in Abinit),
-# so that the fallbacks and Abinit select the same libraries on a given
-# machine. On success, sets with_linalg_incs and with_linalg_libs, which
-# disables the internal LINALG fallback.
+# Looks for an external linear algebra implementation as Abinit does
+# (same --with-linalg-flavor syntax, vendor settings, detection sequences
+# and link tests, see config/m4/sd_math_linalg*.m4 in Abinit), so that
+# the fallbacks and Abinit select the same libraries on a given machine.
+# Unlike Abinit, the auto mode tries EasyBuild toolchains first, and the
+# easybuild flavor links FlexiBLAS when it is loaded. On success, sets
+# with_linalg_incs and with_linalg_libs, which disables the internal
+# LINALG fallback.
 #
 AC_DEFUN([AFB_LINALG_DETECT],[
   dnl Init
@@ -379,6 +381,16 @@ AC_DEFUN([_AFB_LINALG_DETECT_SEQUENCES],[
         fi
         ;;
     esac
+
+    dnl EasyBuild toolchains (e.g. foss) provide LAPACK in their BLAS
+    dnl library and BLACS in ScaLAPACK: there is no liblapack for the
+    dnl generic flavors to link
+    if test "${EBROOTFLEXIBLAS}" != "" -o "${EBROOTOPENBLAS}" != ""; then
+      afb_linalg_det_chk_serial="easybuild ${afb_linalg_det_chk_serial}"
+    fi
+    if test "${afb_has_mpi}" = "yes" -a "${EBROOTSCALAPACK}" != ""; then
+      afb_linalg_det_chk_mpi="easybuild ${afb_linalg_det_chk_mpi}"
+    fi
 
     dnl Cray LibSci comes first on a Cray Programming Environment, since
     dnl the compiler wrappers link it automatically when it is loaded
@@ -759,8 +771,14 @@ AC_DEFUN([_AFB_LINALG_DETECT_VENDOR],[
       ;;
 
     easybuild)
+      dnl BLAS library of the toolchain, which includes LAPACK: FlexiBLAS
+      dnl since 2021a (the one ScaLAPACK is linked with), OpenBLAS before
       afb_linalg_vnd_provided="blas lapack blacs scalapack"
-      afb_linalg_vnd_blas_libs="-lopenblas"
+      if test "${EBROOTFLEXIBLAS}" != ""; then
+        afb_linalg_vnd_blas_libs="-lflexiblas"
+      else
+        afb_linalg_vnd_blas_libs="-lopenblas"
+      fi
       afb_linalg_vnd_blacs_libs="-lscalapack"
       ;;
 
