@@ -27,7 +27,7 @@ AC_DEFUN([AFB_TRICKS_ELPA],[
   dnl Init
   afb_elpa_tricks="no"
   afb_elpa_tricky_vars=""
-  tmp_elpa_num_tricks=2
+  tmp_elpa_num_tricks=1
   tmp_elpa_cnt_tricks=0
 
   AC_ARG_ENABLE(elpa-openmp,
@@ -129,21 +129,9 @@ AC_DEFUN([AFB_TRICKS_ELPA],[
   MAKEARGS_ELPA="noinst_PROGRAMS= 'noinst_LTLIBRARIES=libelpa\$\$(SUFFIX)_public.la libelpa\$\$(SUFFIX)_private.la'"
   AC_SUBST(MAKEARGS_ELPA)
 
-  dnl Linar algebra tricks
-  if test "${afb_elpa_ldflag_custom}" = "no"; then
-    AC_MSG_NOTICE([applying ELPA tricks (vendor: $1, version: $2, flags: linalg)])
-    
-    dnl Add standard flags
-    tmplibs_elpa='$(afb_linalg_libs)'
-    LDFLAGS_ELPA="${tmplibs_elpa} ${LDFLAGS_ELPA}"
-    unset tmplibs_elpa
-    
-    dnl Finish
-    tmp_elpa_cnt_tricks=`expr ${tmp_elpa_cnt_tricks} \+ 1`
-    afb_elpa_tricky_vars="${afb_elpa_tricky_vars} LDFLAGS"
-  else
-    AC_MSG_NOTICE([LDFLAGS_ELPA set => skipping ELPA linalg tricks])
-  fi
+  dnl No linear algebra tricks: since ELPA depends on LINALG, the build
+  dnl system already passes $(afb_linalg_libs) to its configure script
+  dnl through LIBS
 
   dnl Count applied tricks
   case "${tmp_elpa_cnt_tricks}" in
