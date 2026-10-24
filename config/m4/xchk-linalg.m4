@@ -254,12 +254,15 @@ AC_DEFUN([AFB_CHECK_LINALG],[
 # (same --with-linalg-flavor syntax, vendor settings, detection sequences
 # and link tests, see config/m4/sd_math_linalg*.m4 in Abinit), so that
 # the fallbacks and Abinit select the same libraries on a given machine.
-# Unlike Abinit, the auto mode tries EasyBuild toolchains first, and the
-# easybuild flavor links FlexiBLAS when it is loaded. On success, sets
+# Unlike Abinit, the auto mode first tries the BLAS libraries which include
+# LAPACK (FlexiBLAS, OpenBLAS) and ScaLAPACK, found with pkg-config or in
+# the default search paths of the compilers. On success, sets
 # with_linalg_incs and with_linalg_libs, which disables the internal
 # LINALG fallback.
 #
 AC_DEFUN([AFB_LINALG_DETECT],[
+  AC_REQUIRE([_AFB_FIND_PKG_CONFIG])
+
   dnl Init
   afb_linalg_det_valid_flavors="auto acml aocl asl atlas easybuild elpa essl libsci magma mkl netlib none openblas plasma slate"
   afb_linalg_det_chk_serial=""
@@ -367,34 +370,30 @@ AC_DEFUN([_AFB_LINALG_DETECT_SEQUENCES],[
           afb_linalg_det_chk_serial="mkl ${afb_linalg_det_chk_serial}"
         fi
         afb_linalg_det_chk_serial="openblas atlas ${afb_linalg_det_chk_serial}"
-        AC_CHECK_PROG([PKG_CONFIG], [pkg-config], [pkg-config], [no])
-        if test "${PKG_CONFIG}" != "no"; then
-          afb_linalg_det_chk_serial="${afb_linalg_det_chk_serial} openblas_pkg"
-        fi
         ;;
       intel)
-        dnl MKL is only usable when its environment is set, which is not
-        dnl the case when only the Intel compilers are loaded
         afb_linalg_det_chk_serial="atlas ${afb_linalg_det_chk_serial}"
-        if test "${MKLROOT}" != ""; then
-          afb_linalg_det_chk_serial="mkl ${afb_linalg_det_chk_serial}"
-          afb_linalg_det_chk_mpi="mkl netlib"
-        fi
-        AC_CHECK_PROG([PKG_CONFIG], [pkg-config], [pkg-config], [no])
-        if test "${PKG_CONFIG}" != "no"; then
-          afb_linalg_det_chk_serial="${afb_linalg_det_chk_serial} openblas_pkg"
-        fi
         ;;
     esac
 
-    dnl EasyBuild toolchains (e.g. foss) provide LAPACK in their BLAS
-    dnl library and BLACS in ScaLAPACK: there is no liblapack for the
-    dnl generic flavors to link
-    if test "${EBROOTFLEXIBLAS}" != "" -o "${EBROOTOPENBLAS}" != ""; then
-      afb_linalg_det_chk_serial="easybuild ${afb_linalg_det_chk_serial}"
+    dnl Try first the BLAS libraries which include LAPACK (FlexiBLAS, which
+    dnl ScaLAPACK is usually linked with when available, then OpenBLAS),
+    dnl and ScaLAPACK, which includes BLACS: there may be no separate LAPACK
+    dnl and BLACS libraries for the flavors above to link (e.g. with
+    dnl environment modules)
+    afb_linalg_det_chk_serial="flexiblas openblas_pkg ${afb_linalg_det_chk_serial}"
+    if test "${afb_has_mpi}" = "yes"; then
+      afb_linalg_det_chk_mpi="scalapack_pkg ${afb_linalg_det_chk_mpi}"
     fi
-    if test "${afb_has_mpi}" = "yes" -a "${EBROOTSCALAPACK}" != ""; then
-      afb_linalg_det_chk_mpi="easybuild ${afb_linalg_det_chk_mpi}"
+
+    dnl MKL comes first with the Intel compilers, provided that its
+    dnl environment is set, which is not the case when only the compilers
+    dnl are loaded
+    if test "${afb_fc_vendor}" = "intel" -a "${MKLROOT}" != ""; then
+      afb_linalg_det_chk_serial="mkl ${afb_linalg_det_chk_serial}"
+      if test "${afb_has_mpi}" = "yes"; then
+        afb_linalg_det_chk_mpi="mkl ${afb_linalg_det_chk_mpi}"
+      fi
     fi
 
     dnl Cray LibSci comes first on a Cray Programming Environment, since
@@ -776,14 +775,8 @@ AC_DEFUN([_AFB_LINALG_DETECT_VENDOR],[
       ;;
 
     easybuild)
-      dnl BLAS library of the toolchain, which includes LAPACK: FlexiBLAS
-      dnl since 2021a (the one ScaLAPACK is linked with), OpenBLAS before
       afb_linalg_vnd_provided="blas lapack blacs scalapack"
-      if test "${EBROOTFLEXIBLAS}" != ""; then
-        afb_linalg_vnd_blas_libs="-lflexiblas"
-      else
-        afb_linalg_vnd_blas_libs="-lopenblas"
-      fi
+      afb_linalg_vnd_blas_libs="-lopenblas"
       afb_linalg_vnd_blacs_libs="-lscalapack"
       ;;
 
@@ -798,6 +791,17 @@ AC_DEFUN([_AFB_LINALG_DETECT_VENDOR],[
       afb_linalg_vnd_fcflags="-qessl"
       afb_linalg_vnd_ldflags="-qessl"
       afb_linalg_vnd_blas_libs="-lessl"
+      ;;
+
+    flexiblas)
+      dnl FlexiBLAS includes LAPACK
+      afb_linalg_vnd_provided="blas lapack"
+      afb_linalg_vnd_blas_libs="-lflexiblas"
+      if test "${afb_find_pkg_config}" != ""; then
+        if ${afb_find_pkg_config} --exists flexiblas; then
+          afb_linalg_vnd_blas_libs=`${afb_find_pkg_config} --libs flexiblas`
+        fi
+      fi
       ;;
 
     libsci)
@@ -876,19 +880,38 @@ AC_DEFUN([_AFB_LINALG_DETECT_VENDOR],[
       ;;
 
     openblas_pkg)
+      dnl OpenBLAS usually includes LAPACK, otherwise found with pkg-config
       afb_linalg_vnd_provided="blas lapack"
-      AC_PATH_TOOL([PKG_CONFIG], [pkg-config])
-      if "${PKG_CONFIG}" --exists openblas; then
-        afb_linalg_vnd_blas_libs=`${PKG_CONFIG} --libs --keep-system-libs openblas`
-      else
-        afb_linalg_vnd_blas_libs="-lopenblas -lpthread"
+      afb_linalg_vnd_blas_libs="-lopenblas -lpthread"
+      if test "${afb_find_pkg_config}" != ""; then
+        if ${afb_find_pkg_config} --exists openblas; then
+          afb_linalg_vnd_blas_libs=`${afb_find_pkg_config} --libs openblas`
+        fi
+        if ${afb_find_pkg_config} --exists lapacke; then
+          afb_linalg_vnd_lapack_libs=`${afb_find_pkg_config} --libs lapacke`
+        elif ${afb_find_pkg_config} --exists lapack; then
+          afb_linalg_vnd_lapack_libs=`${afb_find_pkg_config} --libs lapack`
+        fi
       fi
-      if "${PKG_CONFIG}" --exists lapacke; then
-        afb_linalg_vnd_lapack_libs=`${PKG_CONFIG} --libs --keep-system-libs lapacke`
-      elif "${PKG_CONFIG}" --exists lapack; then
-        afb_linalg_vnd_lapack_libs=`${PKG_CONFIG} --libs --keep-system-libs lapack`
-      else
-        afb_linalg_vnd_lapack_libs="-llapack"
+      ;;
+
+    scalapack_pkg)
+      dnl ScaLAPACK includes BLACS since version 2.0. Its pkg-config file
+      dnl often requires modules which do not exist (e.g. mpi or blas), so
+      dnl that only its library directory is taken from it, without looking
+      dnl at the required modules if possible (pkgconf), since some versions
+      dnl of pkgconf would fail otherwise
+      afb_linalg_vnd_provided="scalapack"
+      afb_linalg_vnd_scalapack_libs="-lscalapack"
+      if test "${afb_find_pkg_config}" != ""; then
+        tmp_scalapack_libdir=`${afb_find_pkg_config} --maximum-traverse-depth=1 --variable=libdir scalapack 2>/dev/null`
+        if test "${tmp_scalapack_libdir}" = ""; then
+          tmp_scalapack_libdir=`${afb_find_pkg_config} --variable=libdir scalapack 2>/dev/null`
+        fi
+        if test "${tmp_scalapack_libdir}" != ""; then
+          afb_linalg_vnd_scalapack_libs="-L${tmp_scalapack_libdir} -lscalapack"
+        fi
+        unset tmp_scalapack_libdir
       fi
       ;;
 
