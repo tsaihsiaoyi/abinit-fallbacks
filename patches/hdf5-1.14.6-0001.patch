@@ -1,0 +1,37 @@
+Get the version of clang++ before trying g++ in config/linux-gnu
+
+"clang++" matches the *g++* pattern, which comes first, so the version
+information of clang++ was looked for as for g++, i.e. as the lines of
+"clang++ --version" containing "GCC". When the path of the compiler
+contains "GCC" (e.g. the GCCcore installation directory of the LLVM
+compilers of EasyBuild), several lines match, and the resulting multi-line
+CXX_VERSION breaks the generated Makefiles ("No rule to make target ...").
+Check for clang++ first, like for pgcc and gcc in the C case.
+
+--- a/config/linux-gnu
++++ b/config/linux-gnu
+@@ -370,6 +370,12 @@
+     *pgc++*)
+         cxx_version_info=`$CXX $CXXFLAGS $H5_CXXFLAGS -V 2>&1 | grep 'pgc++'`
+         ;;
++    # whatever matches *clang++* will also match *g++*, so this one must come first
++    *clang++*)
++        cxx_version_info="`$CXX $CXXFLAGS $H5_CXXFLAGS --version 2>&1 |\
++            grep 'clang version' | sed 's/.*clang version \([-a-z0-9\.]*\).*/\1/'`"
++        ;;
++
+     *g++*)
+         cxx_version_info=`$CXX $CXXFLAGS $H5_CXXFLAGS --version 2>&1 |\
+             grep 'GCC' | sed 's/\(.*(GCC) [-a-z0-9\. ]*\).*/\1/'`
+@@ -389,11 +395,6 @@
+         cxx_version_info=`echo $cxx_version_info`
+         ;; 
+ 
+-    *clang++*)
+-        cxx_version_info="`$CXX $CXXFLAGS $H5_CXXFLAGS --version 2>&1 |\
+-            grep 'clang version' | sed 's/.*clang version \([-a-z0-9\.]*\).*/\1/'`"
+-        ;;
+-
+     *)
+         echo "No match to get cxx_version_info for $CXX"
+         ;;
