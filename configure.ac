@@ -144,16 +144,17 @@ AFB_PATCHES_SETUP
 # Compiler search order
 #
 # When CC/CXX/FC are not set by the user, prefer MPI wrappers over serial
-# compilers (and Intel oneAPI over GNU), so that e.g. loading an Intel MPI
-# toolchain is enough to get mpiicx/mpiicpx/mpiifx picked up automatically.
-# Explicit CC=..., CXX=..., FC=... on the command line still take precedence.
+# compilers (and Intel oneAPI or LLVM over GNU), so that e.g. loading an
+# Intel MPI toolchain is enough to get mpiicx/mpiicpx/mpiifx picked up
+# automatically. Explicit CC=..., CXX=..., FC=... on the command line still
+# take precedence.
 #
 m4_define([afb_cc_search_list],
   [mpiicx mpiicc mpicc icx icc gcc cc])
 m4_define([afb_cxx_search_list],
   [mpiicpx mpiicpc mpicxx mpic++ mpiCC icpx icpc g++ c++])
 m4_define([afb_fc_search_list],
-  [mpiifx mpiifort mpif90 mpifort ifx ifort gfortran f95 f90])
+  [mpiifx mpiifort mpif90 mpifort ifx ifort flang flang-new gfortran f95 f90])
 
 # On a Cray Programming Environment, the cc/CC/ftn wrappers already include
 # MPI (cray-mpich) and the selected PrgEnv compiler, so they must win over
@@ -184,6 +185,34 @@ if test "${afb_cray_pe}" = "yes"; then
   else
     AC_MSG_NOTICE([not using the Cray compiler wrappers, as requested: CC=${CC} CXX=${CXX} FC=${FC}])
   fi
+fi
+
+# The LLVM compilers (e.g. of an LLVM or AOCC module) come along with the
+# GNU compilers they have been built with, which the C and C++ search lists
+# would select: use clang and clang++ when the Fortran compiler is flang, so
+# that all the compilers come from the same vendor. They are not simply put
+# in the lists above, since clang is often installed next to GCC.
+if test "${CC}" = "" -o "${CXX}" = ""; then
+  if test "${FC}" = ""; then
+    for tmp_fc_cmd in afb_fc_search_list; do
+      command -v ${tmp_fc_cmd} >/dev/null 2>&1 && break
+      tmp_fc_cmd=""
+    done
+  else
+    tmp_fc_cmd=`echo ${FC} | cut -d' ' -f1`
+    tmp_fc_cmd=`basename "${tmp_fc_cmd}"`
+  fi
+  case "${tmp_fc_cmd}" in
+    flang|flang-new)
+      if command -v clang >/dev/null 2>&1 && \
+         command -v clang++ >/dev/null 2>&1; then
+        test "${CC}" = "" && CC="clang"
+        test "${CXX}" = "" && CXX="clang++"
+        AC_MSG_NOTICE([using the LLVM compilers: CC=${CC} CXX=${CXX}])
+      fi
+      ;;
+  esac
+  unset tmp_fc_cmd
 fi
 
 # ---------------------------------------------------------------------------- #
