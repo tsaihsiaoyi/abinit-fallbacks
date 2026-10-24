@@ -373,8 +373,13 @@ AC_DEFUN([_AFB_LINALG_DETECT_SEQUENCES],[
         fi
         ;;
       intel)
-        afb_linalg_det_chk_serial="mkl atlas ${afb_linalg_det_chk_serial}"
-        afb_linalg_det_chk_mpi="mkl netlib"
+        dnl MKL is only usable when its environment is set, which is not
+        dnl the case when only the Intel compilers are loaded
+        afb_linalg_det_chk_serial="atlas ${afb_linalg_det_chk_serial}"
+        if test "${MKLROOT}" != ""; then
+          afb_linalg_det_chk_serial="mkl ${afb_linalg_det_chk_serial}"
+          afb_linalg_det_chk_mpi="mkl netlib"
+        fi
         AC_CHECK_PROG([PKG_CONFIG], [pkg-config], [pkg-config], [no])
         if test "${PKG_CONFIG}" != "no"; then
           afb_linalg_det_chk_serial="${afb_linalg_det_chk_serial} openblas_pkg"
