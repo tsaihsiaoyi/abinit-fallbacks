@@ -341,10 +341,21 @@ fi
 # Look for external linear algebra as Abinit does
 AFB_LINALG_DETECT
 
-# ELPA requires MPI (and ScaLAPACK): do not build it by default without MPI
-if test "${afb_has_mpi}" != "yes" -a "${enable_elpa}" = ""; then
-  AC_MSG_NOTICE([MPI is not available => disabling the ELPA fallback])
-  enable_elpa="no"
+# ELPA requires MPI and ScaLAPACK: do not build it by default without them,
+# e.g. with the internal LINALG fallback, which does not provide ScaLAPACK
+if test "${enable_elpa}" = ""; then
+  if test "${afb_has_mpi}" != "yes"; then
+    AC_MSG_NOTICE([MPI is not available => disabling the ELPA fallback])
+    enable_elpa="no"
+  elif test "${enable_linalg}" != "no" -a \
+            "${with_linalg_incs}" = "" -a "${with_linalg_libs}" = ""; then
+    AC_MSG_NOTICE([ScaLAPACK is not available => disabling the ELPA fallback])
+    enable_elpa="no"
+  elif test "${afb_linalg_det_serial_ok}" = "yes" -a \
+            "${afb_linalg_det_has_scalapack}" != "yes"; then
+    AC_MSG_NOTICE([ScaLAPACK is not available => disabling the ELPA fallback])
+    enable_elpa="no"
+  fi
 fi
 
 # Configure all fallbacks
