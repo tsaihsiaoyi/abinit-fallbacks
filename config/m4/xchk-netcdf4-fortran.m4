@@ -58,3 +58,29 @@ AC_DEFUN([AFB_CHECK_NETCDF4_FORTRAN],[
   FCFLAGS="${tmp_saved_FCFLAGS}"
   LIBS="${tmp_saved_LIBS}"
 ]) # AFB_CHECK_NETCDF4_FORTRAN
+
+
+
+# AFB_FIND_NETCDF4_FORTRAN()
+# --------------------------
+#
+# Looks for a working NetCDF4-Fortran in the build environment (see
+# xchk-find.m4). It is only used with an external NetCDF4, which it has
+# presumably been built with.
+#
+AC_DEFUN([AFB_FIND_NETCDF4_FORTRAN],[
+  if test "${enable_netcdf4_fortran}" = ""; then
+    if test "${enable_netcdf4}" = "no" -a "${afb_netcdf4_ok}" = "yes"; then
+      _AFB_FIND_INIT([NetCDF4-Fortran])
+      _AFB_FIND_ADD_PKGCONFIG([netcdf-fortran])
+      _AFB_FIND_TRY([netcdf4_fortran], [AFB_CHECK_NETCDF4_FORTRAN])
+      if test "${afb_netcdf4_fortran_found}" = "yes"; then
+        enable_netcdf4_fortran="no"
+        with_netcdf4_fortran_incs="${afb_netcdf4_fortran_incs}"
+        with_netcdf4_fortran_libs="${afb_netcdf4_fortran_libs}"
+      fi
+    else
+      AC_MSG_NOTICE([NetCDF4 is built as a fallback => building the NetCDF4-Fortran fallback as well])
+    fi
+  fi
+]) # AFB_FIND_NETCDF4_FORTRAN

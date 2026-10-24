@@ -89,3 +89,31 @@ AC_DEFUN([AFB_CHECK_HDF5],[
   CPPFLAGS="${tmp_saved_CPPFLAGS}"
   LIBS="${tmp_saved_LIBS}"
 ]) # AFB_CHECK_HDF5
+
+
+
+# AFB_FIND_HDF5()
+# ---------------
+#
+# Looks for a working HDF5 in the build environment (see xchk-find.m4).
+# Like the fallback, it must support parallel I/O if and only if MPI is
+# available.
+#
+AC_DEFUN([AFB_FIND_HDF5],[
+  if test "${enable_hdf5}" = ""; then
+    _AFB_FIND_INIT([HDF5])
+    _AFB_FIND_ADD_PKGCONFIG([hdf5_hl])
+    dnl Some installations only provide the module of the main library
+    _AFB_FIND_ADD_PKGCONFIG([hdf5], [],
+      [-lhdf5_hl `${afb_find_pkg_config} --libs hdf5`])
+    _AFB_FIND_TRY([hdf5], [AFB_CHECK_HDF5],
+      [test "${afb_hdf5_has_par}" = "${afb_hdf5_build_par}"])
+    if test "${afb_hdf5_found}" = "yes"; then
+      enable_hdf5="no"
+      with_hdf5_incs="${afb_hdf5_incs}"
+      with_hdf5_libs="${afb_hdf5_libs}"
+    elif test "${afb_hdf5_build_par}" = "yes"; then
+      AC_MSG_NOTICE([note: since MPI is available, HDF5 must support parallel I/O])
+    fi
+  fi
+]) # AFB_FIND_HDF5

@@ -141,6 +141,9 @@ AC_DEFUN([_AFB_SETUP_@PKG_NICK@],[
       [Disable @PKG_DESC@ support]))
   AC_SUBST(enable_@pkg_nick@)@WITH_OPTS@
 
+  dnl Look for a working external package if not configured explicitly
+  m4_ifdef([AFB_FIND_@PKG_NICK@], [AFB_FIND_@PKG_NICK@@CHK_ARGS@])
+
   dnl Make sure all required options are set
   if test "${enable_@pkg_nick@}" = ""; then
     enable_@pkg_nick@="yes"

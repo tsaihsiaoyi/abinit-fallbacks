@@ -101,3 +101,23 @@ AC_DEFUN([AFB_CHECK_LIBXC],[
   CPPFLAGS="${tmp_saved_CPPFLAGS}"
   LIBS="${tmp_saved_LIBS}"
 ]) # AFB_CHECK_LIBXC
+
+
+
+# AFB_FIND_LIBXC(API_MAJOR, API_MINOR, API_MAX)
+# ---------------------------------------------
+#
+# Looks for a working LibXC in the build environment (see xchk-find.m4).
+#
+AC_DEFUN([AFB_FIND_LIBXC],[
+  if test "${enable_libxc}" = ""; then
+    _AFB_FIND_INIT([LibXC])
+    _AFB_FIND_ADD_PKGCONFIG([libxc])
+    _AFB_FIND_TRY([libxc], [AFB_CHECK_LIBXC($1,$2,$3)])
+    if test "${afb_libxc_found}" = "yes"; then
+      enable_libxc="no"
+      with_libxc_incs="${afb_libxc_incs}"
+      with_libxc_libs="${afb_libxc_libs}"
+    fi
+  fi
+]) # AFB_FIND_LIBXC

@@ -98,3 +98,31 @@ AC_DEFUN([AFB_CHECK_NETCDF4],[
   CPPFLAGS="${tmp_saved_CPPFLAGS}"
   LIBS="${tmp_saved_LIBS}"
 ]) # AFB_CHECK_NETCDF4
+
+
+
+# AFB_FIND_NETCDF4()
+# ------------------
+#
+# Looks for a working NetCDF4 in the build environment (see xchk-find.m4).
+# It is only used with an external HDF5, which it has presumably been
+# built with, and like the fallback, it must support parallel I/O if and
+# only if MPI is available.
+#
+AC_DEFUN([AFB_FIND_NETCDF4],[
+  if test "${enable_netcdf4}" = ""; then
+    if test "${enable_hdf5}" = "no" -a "${afb_hdf5_ok}" = "yes"; then
+      _AFB_FIND_INIT([NetCDF4])
+      _AFB_FIND_ADD_PKGCONFIG([netcdf])
+      _AFB_FIND_TRY([netcdf4], [AFB_CHECK_NETCDF4],
+        [test "${afb_netcdf4_has_par}" = "${afb_hdf5_build_par}"])
+      if test "${afb_netcdf4_found}" = "yes"; then
+        enable_netcdf4="no"
+        with_netcdf4_incs="${afb_netcdf4_incs}"
+        with_netcdf4_libs="${afb_netcdf4_libs}"
+      fi
+    else
+      AC_MSG_NOTICE([HDF5 is built as a fallback => building the NetCDF4 fallback as well])
+    fi
+  fi
+]) # AFB_FIND_NETCDF4
