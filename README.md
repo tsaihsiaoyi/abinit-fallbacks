@@ -128,6 +128,49 @@ name suits you best.
 > the faulty package directly, as we cannot do anything about it ourselves. 
 > Or better: fix it and send them a patch.<span>
 
+## Using the compilers and libraries already available
+
+The configure script uses what is available in the build environment, e.g.
+through environment modules, so that loading them is usually enough:
+```bash
+module load foss/2025b libxc/7.0.0-GCC-14.3.0
+mkdir tmp-mybuild
+cd tmp-mybuild
+../configure --prefix=`pwd`
+make install
+```
+
+  * **Compilers**: the MPI compiler wrappers are preferred (Intel ones first,
+    e.g. _mpiicx_ and _mpiifx_, then _mpicc_ and _mpif90_), then the serial
+    compilers (Intel, then LLVM, i.e. _clang_ with _flang_, then GNU). On a
+    Cray system, the _cc_, _CC_ and _ftn_ wrappers are used. Setting _CC_,
+    _CXX_ and _FC_ overrides this choice.
+  * **Linear algebra**: it is detected as Abinit does, except that FlexiBLAS
+    and OpenBLAS (which include LAPACK) and ScaLAPACK are tried first, with
+    _pkg-config_ or in the default search paths of the compilers. MKL comes
+    first with the Intel compilers (when _MKLROOT_ is set), and Cray LibSci on
+    Cray systems. The internal LINALG fallback is only built when none is
+    found. Use _--with-linalg-flavor_ to select one explicitly.
+  * **LibXC, HDF5, NetCDF4, NetCDF4-Fortran and ELPA**: they are looked for
+    with _pkg-config_, and the corresponding fallbacks are not built when
+    they work with the current compilers. HDF5 and NetCDF4 must support parallel I/O if and only if MPI
+    is available. NetCDF4 is only used with an external HDF5, and
+    NetCDF4-Fortran with an external NetCDF4, so that all of them come from
+    the same installation.
+  * **ELPA** is only built with MPI and ScaLAPACK, and **BigDFT** is not
+    built with LLVM Flang, which crashes on its source code.
+
+The configure output and its final summary tell which packages have been
+found ("Install: no"). Use _--enable-<package>_ to build a fallback anyway,
+_--disable-<package>_ to do without it, or _--with-<package>-incs_ and
+_--with-<package>-libs_ to specify an external package explicitly.
+
+> <span style="color:gray;">💡 Make sure that _pkg-config_ (or _pkgconf_) is
+> installed: without it, only the linear algebra already available is used,
+> and all the other fallbacks are built. The modules used to build the
+> fallbacks must also be
+> loaded when building and running Abinit.</span>
+
 ## Building the fallbacks with Abinit 
 
 For convenience, a release of the fallbacks comes with the source tarball of Abinit.
