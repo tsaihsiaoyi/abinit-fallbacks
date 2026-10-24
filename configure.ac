@@ -387,6 +387,19 @@ if test "${enable_elpa}" = ""; then
   fi
 fi
 
+# LLVM Flang (at least version 20) crashes when compiling BigDFT, on the
+# allocations of arrays of rank 2 or more with f_malloc_ptr (found more
+# than a thousand times in BigDFT): do not build it by default with this
+# compiler (the Flang of AOCC, which reports the same vendor, works)
+if test "${enable_bigdft}" = "" -a "${afb_fc_vendor}" = "llvm"; then
+  if ${FC} --version 2>&1 | grep AOCC >/dev/null; then
+    :
+  else
+    AC_MSG_NOTICE([LLVM Flang cannot compile BigDFT => disabling the BigDFT fallback])
+    enable_bigdft="no"
+  fi
+fi
+
 # Configure all fallbacks
 AFB_SETUP_PACKAGES
 
