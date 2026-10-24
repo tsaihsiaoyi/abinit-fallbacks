@@ -12,71 +12,80 @@
 # AFB_CHECK_HDF5()
 # ----------------
 #
-# Check whether the specified HDF5 library is working.
+# Check whether the specified HDF5 library is working, including its
+# high-level library, which NetCDF4 requires. Also tells whether it
+# supports parallel I/O. The results are not cached, since this macro may
+# be called several times with different flags.
 #
 AC_DEFUN([AFB_CHECK_HDF5],[
   dnl Init
   afb_hdf5_default_libs="-lhdf5_hl -lhdf5"
+  afb_hdf5_has_incs="unknown"
+  afb_hdf5_has_libs="unknown"
   afb_hdf5_has_par="unknown"
-  afb_hdf5_ok="unknown"
+  afb_hdf5_ext_ok="no"
 
   dnl Prepare environment
-  tmp_saved_with_hdf5="${with_hdf5}"
   tmp_saved_CPPFLAGS="${CPPFLAGS}"
-  tmp_saved_FCFLAGS="${FCFLAGS}"
   tmp_saved_LIBS="${LIBS}"
   CPPFLAGS="${CPPFLAGS} ${afb_hdf5_incs}"
-  AC_MSG_CHECKING([for HDF5 libraries to try])
   if test "${afb_hdf5_libs}" = ""; then
+    AC_MSG_CHECKING([for HDF5 libraries to try])
     LIBS="${afb_hdf5_default_libs} ${LIBS}"
     AC_MSG_RESULT([${afb_hdf5_default_libs}])
   else
     LIBS="${afb_hdf5_libs} ${LIBS}"
-    AC_MSG_RESULT([${afb_hdf5_libs}])
   fi
-
-  dnl Look for prerequisites
   AC_LANG_PUSH([C])
-  AC_CHECK_HEADERS([zlib.h curl/curl.h],
-    [afb_hdf5_has_preh="yes"],[afb_hdf5_has_preh="no"])
-  AC_SEARCH_LIBS([deflateInit_], [z],
-    [afb_hdf5_has_zlib="yes"], [afb_hdf5_has_zlib="no"])
-  AC_SEARCH_LIBS([curl_easy_init], [curl],
-    [afb_hdf5_has_prel="yes"], [afb_hdf5_has_prel="no"])
+
+  dnl Look for C includes
+  AC_MSG_CHECKING([for HDF5 C headers])
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+    [[
+#include <hdf5.h>
+#include <hdf5_hl.h>
+    ]], [])], [afb_hdf5_has_incs="yes"], [afb_hdf5_has_incs="no"])
+  AC_MSG_RESULT([${afb_hdf5_has_incs}])
+
+  dnl Check whether the libraries work
+  if test "${afb_hdf5_has_incs}" = "yes"; then
+    AC_MSG_CHECKING([whether HDF5 works])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM(
+      [[
+#include <hdf5.h>
+#include <hdf5_hl.h>
+      ]],
+      [[
+        H5open();
+        H5DSis_scale(0);
+        H5close();
+      ]])], [afb_hdf5_has_libs="yes"], [afb_hdf5_has_libs="no"])
+    AC_MSG_RESULT([${afb_hdf5_has_libs}])
+  fi
+
+  dnl Check for parallel I/O support
+  if test "${afb_hdf5_has_libs}" = "yes"; then
+    AC_MSG_CHECKING([whether HDF5 supports parallel I/O])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+      [[
+#include <hdf5.h>
+#ifndef H5_HAVE_PARALLEL
+#error "serial HDF5"
+#endif
+      ]], [])], [afb_hdf5_has_par="yes"], [afb_hdf5_has_par="no"])
+    AC_MSG_RESULT([${afb_hdf5_has_par}])
+  fi
   AC_LANG_POP([C])
-  if test "${afb_hdf5_has_preh}" != "yes"; then
-    AC_MSG_WARN([missing prerequisite C headers])
-  fi
-  if test "${afb_hdf5_has_prel}" != "yes"; then
-    AC_MSG_WARN([missing prerequisite libraries])
-  fi
 
-  dnl Use existing HDF5 macro from Autoconf Archive,
-  dnl first parallel, then serial if it fails
-  dnl We have to do this because we prefer parallel, while the macro
-  dnl prefers serial
-  AX_LIB_HDF5([parallel])
-  if test "${with_hdf5}" = "no"; then
-    AC_MSG_NOTICE([no parallel HDF5 found, looking for a serial one])
-    with_hdf5="${tmp_saved_with_hdf5}"
-    AX_LIB_HDF5([serial])
-  fi
-
-  dnl Set internal variables according to the results of AX_LIB_HDF5
-  dnl See ax_lib_hdf5.m4 for more information
-  if test "${with_hdf5}" = "yes"; then
-    AC_MSG_CHECKING([which HDF5 version we have])
-    AC_MSG_RESULT([${HDF5_VERSION}])
-    AC_MSG_CHECKING([which HDF5 type we have])
-    AC_MSG_RESULT([${HDF5_TYPE}])
-    afb_hdf5_ok="yes"
-  else
-    afb_hdf5_ok="no"
+  dnl Final adjustments
+  if test "${afb_hdf5_has_libs}" = "yes"; then
+    afb_hdf5_ext_ok="yes"
+    if test "${afb_hdf5_libs}" = ""; then
+      afb_hdf5_libs="${afb_hdf5_default_libs}"
+    fi
   fi
 
   dnl Restore environment
-  with_hdf5="${tmp_saved_with_hdf5}"
   CPPFLAGS="${tmp_saved_CPPFLAGS}"
-  FCFLAGS="${tmp_saved_FCFLAGS}"
   LIBS="${tmp_saved_LIBS}"
 ]) # AFB_CHECK_HDF5

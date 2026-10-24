@@ -1,6 +1,6 @@
 # -*- Autoconf -*-
 #
-# Copyright (C) 2014-2017 ABINIT Group (Yann Pouillon)
+# Copyright (C) 2014 ABINIT Group (Yann Pouillon)
 #
 # This file is part of the ABINIT software package. For license information,
 # please see the COPYING file in the top-level directory of the ABINIT source
@@ -12,64 +12,89 @@
 # AFB_CHECK_NETCDF4()
 # -------------------
 #
-# Check whether the specified NetCDF4 library is working.
+# Check whether the specified NetCDF4 library is working and supports the
+# NetCDF-4 (HDF5) format. Also tells whether it supports parallel I/O. The
+# results are not cached, since this macro may be called several times
+# with different flags.
 #
 AC_DEFUN([AFB_CHECK_NETCDF4],[
   dnl Init
   afb_netcdf4_default_libs="-lnetcdf"
-  afb_netcdf4_ok="unknown"
-  afb_netcdf4_par_ok="unknown"
+  afb_netcdf4_has_incs="unknown"
+  afb_netcdf4_has_nc4="unknown"
+  afb_netcdf4_has_libs="unknown"
+  afb_netcdf4_has_par="unknown"
+  afb_netcdf4_ext_ok="no"
 
   dnl Prepare environment
-  tmp_saved_with_netcdf4="${with_netcdf4}"
   tmp_saved_CPPFLAGS="${CPPFLAGS}"
-  tmp_saved_FCFLAGS="${FCFLAGS}"
   tmp_saved_LIBS="${LIBS}"
   CPPFLAGS="${CPPFLAGS} ${afb_netcdf4_incs}"
-  AC_MSG_CHECKING([for NetCDF4 libraries to try])
   if test "${afb_netcdf4_libs}" = ""; then
+    AC_MSG_CHECKING([for NetCDF4 libraries to try])
     LIBS="${afb_netcdf4_default_libs} ${LIBS}"
     AC_MSG_RESULT([${afb_netcdf4_default_libs}])
   else
     LIBS="${afb_netcdf4_libs} ${LIBS}"
-    AC_MSG_RESULT([${afb_netcdf4_libs}])
+  fi
+  AC_LANG_PUSH([C])
+
+  dnl Look for C includes
+  AC_MSG_CHECKING([for NetCDF4 C headers])
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+    [[
+#include <netcdf.h>
+#include <netcdf_meta.h>
+    ]], [])], [afb_netcdf4_has_incs="yes"], [afb_netcdf4_has_incs="no"])
+  AC_MSG_RESULT([${afb_netcdf4_has_incs}])
+
+  dnl Check for NetCDF-4 format and parallel I/O support
+  if test "${afb_netcdf4_has_incs}" = "yes"; then
+    AC_MSG_CHECKING([whether NetCDF4 supports the NetCDF-4 format])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+      [[
+#include <netcdf_meta.h>
+#if !(NC_HAS_HDF5 || NC_HAS_NC4)
+#error "no NetCDF-4 support"
+#endif
+      ]], [])], [afb_netcdf4_has_nc4="yes"], [afb_netcdf4_has_nc4="no"])
+    AC_MSG_RESULT([${afb_netcdf4_has_nc4}])
+
+    AC_MSG_CHECKING([whether NetCDF4 supports parallel I/O])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+      [[
+#include <netcdf_meta.h>
+#if !(defined(NC_HAS_PARALLEL4) ? NC_HAS_PARALLEL4 : NC_HAS_PARALLEL)
+#error "serial NetCDF4"
+#endif
+      ]], [])], [afb_netcdf4_has_par="yes"], [afb_netcdf4_has_par="no"])
+    AC_MSG_RESULT([${afb_netcdf4_has_par}])
   fi
 
-  dnl Use existing NetCDF4 macro from Autoconf Archive,
-  dnl first parallel, then serial if it fails
-  dnl We have to do this because we prefer parallel, while the macro
-  dnl prefers serial
-  AX_LIB_NETCDF4([parallel])
-  if test "${with_netcdf4}" = "no"; then
-    AC_MSG_NOTICE([no parallel NetCDF4 found, looking for a serial one])
-    with_netcdf4="${tmp_saved_with_netcdf4}"
-    AX_LIB_NETCDF4([serial])
+  dnl Check whether the library works
+  if test "${afb_netcdf4_has_nc4}" = "yes"; then
+    AC_MSG_CHECKING([whether NetCDF4 works])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM(
+      [[
+#include <netcdf.h>
+      ]],
+      [[
+        const char *version;
+        version = nc_inq_libvers();
+      ]])], [afb_netcdf4_has_libs="yes"], [afb_netcdf4_has_libs="no"])
+    AC_MSG_RESULT([${afb_netcdf4_has_libs}])
   fi
+  AC_LANG_POP([C])
 
-  dnl Set internal variables according to the results of AX_LIB_NETCDF4
-  dnl See ax_lib_netcdf4.m4 for more information
-  if test "${with_netcdf4}" = "yes"; then
-    AC_MSG_CHECKING([which NetCDF4 version we have])
-    AC_MSG_RESULT([${NETCDF4_VERSION}])
-    afb_netcdf4_ok="yes"
-    if test "${afb_netcdf4_incs}" = ""; then
-      afb_netcdf4_incs="${NETCDF4_CPPFLAGS}"
-    fi
+  dnl Final adjustments
+  if test "${afb_netcdf4_has_libs}" = "yes"; then
+    afb_netcdf4_ext_ok="yes"
     if test "${afb_netcdf4_libs}" = ""; then
-      afb_netcdf4_libs="${NETCDF4_LIBS}"
+      afb_netcdf4_libs="${afb_netcdf4_default_libs}"
     fi
-  else
-    afb_netcdf4_ok="no"
-  fi
-  if test "${with_netcdf4_parallel}" = "yes"; then
-    afb_netcdf4_par_ok="yes"
-  else
-    afb_netcdf4_par_ok="no"
   fi
 
   dnl Restore environment
-  with_netcdf4="${tmp_saved_with_netcdf4}"
   CPPFLAGS="${tmp_saved_CPPFLAGS}"
-  FCFLAGS="${tmp_saved_FCFLAGS}"
   LIBS="${tmp_saved_LIBS}"
 ]) # AFB_CHECK_NETCDF4
