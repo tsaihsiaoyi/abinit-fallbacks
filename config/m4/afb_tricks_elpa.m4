@@ -44,6 +44,36 @@ AC_DEFUN([AFB_TRICKS_ELPA],[
     [afb_elpa_enable_simd="yes"])
   AC_MSG_NOTICE([ELPA SIMD kernels: ${afb_elpa_enable_simd}])
 
+  AC_ARG_WITH(elpa-gpu,
+    AS_HELP_STRING([--with-elpa-gpu=ARCH],
+      [Build the GPU kernels of ELPA for the architecture ARCH: NVIDIA compute capability (e.g. sm_80 or sm_89) or AMD target (e.g. gfx90a or gfx942) (default: no GPU kernels)]),
+    [afb_elpa_gpu_arch="${withval}"],
+    [afb_elpa_gpu_arch="no"])
+  case "${afb_elpa_gpu_arch}" in
+    gfx*)
+      afb_elpa_gpu_vendor="amd"
+      ;;
+    no)
+      afb_elpa_gpu_vendor="none"
+      ;;
+    *)
+      afb_elpa_gpu_vendor="nvidia"
+      ;;
+  esac
+  AC_MSG_NOTICE([ELPA GPU kernels: ${afb_elpa_gpu_arch} (vendor: ${afb_elpa_gpu_vendor})])
+
+  AC_ARG_WITH(elpa-cuda,
+    AS_HELP_STRING([--with-elpa-cuda=PATH],
+      [CUDA installation used by the NVIDIA GPU kernels of ELPA, e.g. <nvhpc>/cuda/<version> (default: detected by ELPA)]),
+    [afb_elpa_cuda_path="${withval}"],
+    [afb_elpa_cuda_path=""])
+
+  AC_ARG_WITH(elpa-rocm,
+    AS_HELP_STRING([--with-elpa-rocm=PATH],
+      [ROCm installation used by the AMD GPU kernels of ELPA (default: ROCM_PATH, else /opt/rocm)]),
+    [afb_elpa_rocm_path="${withval}"],
+    [afb_elpa_rocm_path="${ROCM_PATH:-/opt/rocm}"])
+
   dnl Configure tricks
   if test "${afb_elpa_cfgflags_custom}" = "no"; then
     AC_MSG_NOTICE([applying ELPA tricks (vendor: $1, version: $2, flags: config)])
@@ -111,6 +141,35 @@ AC_DEFUN([AFB_TRICKS_ELPA],[
     CFGFLAGS_ELPA="${tmpcfg_elpa} ${CFGFLAGS_ELPA}"
     unset tmpcfg_elpa
     # TODO: add support for 64bit integer support (--enable-64bit-integer-math-support)
+
+    dnl NVIDIA GPU kernels, with CUDA streams (and then cuSOLVER)
+    if test "${afb_elpa_gpu_vendor}" = "nvidia"; then
+      CFGFLAGS_ELPA="${CFGFLAGS_ELPA} --enable-nvidia-gpu-kernels --with-NVIDIA-GPU-compute-capability=${afb_elpa_gpu_arch} --enable-gpu-streams=nvidia"
+      if test "${afb_elpa_cuda_path}" != ""; then
+        CFGFLAGS_ELPA="${CFGFLAGS_ELPA} --with-cuda-path=${afb_elpa_cuda_path}"
+        dnl The NVIDIA HPC SDK puts cuBLAS and cuSOLVER in math_libs/<version>, next to cuda/<version>
+        tmp_elpa_math_libs="${afb_elpa_cuda_path}/../../math_libs/`basename ${afb_elpa_cuda_path}`"
+        if test ! -e "${afb_elpa_cuda_path}/lib64/libcublas.so" -a -e "${tmp_elpa_math_libs}/lib64/libcublas.so"; then
+          CFGFLAGS_ELPA="${CFGFLAGS_ELPA} NVCCFLAGS=-I${tmp_elpa_math_libs}/include"
+          CPPFLAGS_ELPA="${CPPFLAGS_ELPA} -I${tmp_elpa_math_libs}/include"
+          LDFLAGS_ELPA="${LDFLAGS_ELPA} -L${tmp_elpa_math_libs}/lib64 -Wl,-rpath,${tmp_elpa_math_libs}/lib64"
+        fi
+        LDFLAGS_ELPA="${LDFLAGS_ELPA} -L${afb_elpa_cuda_path}/lib64 -Wl,-rpath,${afb_elpa_cuda_path}/lib64"
+        unset tmp_elpa_math_libs
+      fi
+      dnl The static library contains C++ and CUDA objects: programs linked with the Fortran compiler need libstdc++
+      LIBS_ELPA="${LIBS_ELPA} -lstdc++"
+    fi
+
+    dnl AMD GPU kernels compiled with hipcc for the target ARCH, with HIP streams (and then rocSOLVER)
+    if test "${afb_elpa_gpu_vendor}" = "amd"; then
+      CFGFLAGS_ELPA="${CFGFLAGS_ELPA} --enable-amd-gpu-kernels --enable-gpu-streams=amd"
+      CFGFLAGS_ELPA="${CFGFLAGS_ELPA} HIPCC=${afb_elpa_rocm_path}/bin/hipcc HIPCCFLAGS='--offload-arch=${afb_elpa_gpu_arch} -O2'"
+      CPPFLAGS_ELPA="${CPPFLAGS_ELPA} -I${afb_elpa_rocm_path}/include"
+      LDFLAGS_ELPA="${LDFLAGS_ELPA} -L${afb_elpa_rocm_path}/lib -Wl,-rpath,${afb_elpa_rocm_path}/lib"
+      dnl ABINIT links rocBLAS, rocSOLVER and the HIP runtime in its HIP builds; the C++ objects need libstdc++
+      LIBS_ELPA="${LIBS_ELPA} -lrocsolver -lrocblas -lamdhip64 -lstdc++"
+    fi
 
     dnl Finish
     tmp_elpa_cnt_tricks=`expr ${tmp_elpa_cnt_tricks} \+ 1`

@@ -159,6 +159,11 @@ make install
     the same installation.
   * **ELPA** is only built with MPI and ScaLAPACK, and **BigDFT** is not
     built with LLVM Flang, which crashes on its source code.
+  * **ELPA on GPUs**: _--with-elpa-gpu=ARCH_ builds the GPU kernels of ELPA,
+    for NVIDIA GPUs with a compute capability (e.g. _sm_80_) or for AMD GPUs
+    with a gfx target (e.g. _gfx90a_). _--with-elpa-cuda_ and
+    _--with-elpa-rocm_ give the CUDA and ROCm installations (default: found by
+    ELPA for CUDA, _ROCM_PATH_ or _/opt/rocm_ for ROCm).
 
 The configure output and its final summary tell which packages have been
 found ("Install: no"). Use _--enable-<package>_ to build a fallback anyway,
