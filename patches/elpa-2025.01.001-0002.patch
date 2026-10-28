@@ -1,0 +1,19 @@
+--- a/src/cholesky/elpa_cholesky_template.F90	2026-10-28 13:06:07.740899958 +0200
++++ b/src/cholesky/elpa_cholesky_template.F90	2026-10-28 13:06:07.744900218 +0200
+@@ -340,13 +340,13 @@
+ 
+   if (useGPU) then
+ #if defined(WITH_NVIDIA_CUSOLVER) || defined(WITH_AMD_ROCSOLVER)    
+-    successGPU = gpu_malloc(info_dev, 1*sizeof(c_int))
++    successGPU = gpu_malloc(info_dev, int(1*sizeof(c_int), kind=c_intptr_t))
+     check_alloc_gpu("elpa_cholesky: info_dev", successGPU)
+ 
+-    successGPU = gpu_malloc(info_abs_accumulated_dev, 1*sizeof(c_int))
++    successGPU = gpu_malloc(info_abs_accumulated_dev, int(1*sizeof(c_int), kind=c_intptr_t))
+     check_alloc_gpu("elpa_cholesky: info_abs_accumulated_dev", successGPU)
+     
+-    successGPU = gpu_memset(info_abs_accumulated_dev, 0, 1*sizeof(c_int))
++    successGPU = gpu_memset(info_abs_accumulated_dev, 0, int(1*sizeof(c_int), kind=c_intptr_t))
+     check_memcpy_gpu("elpa_cholesky: memset info_abs_accumulated_dev", successGPU)
+ #endif
+ 
